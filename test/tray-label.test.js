@@ -23,46 +23,77 @@ const idleReport = () => ({
 
 /* ---------- 메뉴바 제목 ---------- */
 
-test('trayTitle shows only the amount while the burn is normal', () => {
-  // Arrange — 평상시에는 조용해야 한다. 아이콘이 이미 앱을 알려 준다.
-  const report = activeReport({ burnStatus: { level: 'ok', rank: 0.2 } })
-
-  // Act & Assert
-  assert.equal(trayTitle(report), '$261')
+const freshLimits = (percent, over = {}) => ({
+  source: 'live',
+  isStale: false,
+  ageMs: 1000,
+  fallbackReason: null,
+  entries: [
+    { kind: 'session', label: '현재 세션', percent, severity: 'normal', resetsAt: NOW + 125 * 60_000, isActive: true },
+    { kind: 'weekly_all', label: '주간 · 모든 모델', percent: 20, severity: 'normal', resetsAt: null, isActive: false },
+  ],
+  ...over,
 })
 
-test('trayTitle spells out the status when it needs attention', () => {
-  // Act & Assert — 글리프는 16px 에서 아이콘과 뭉개져 구분이 안 된다
-  assert.equal(trayTitle(activeReport({ burnStatus: { level: 'warn', rank: 0.8 } })), '주의 $261')
-  assert.equal(trayTitle(activeReport({ burnStatus: { level: 'crit', rank: 0.95 } })), '높음 $261')
+const NOW = Date.parse('2026-08-24T08:00:00Z')
+
+test('trayTitle shows the real session limit percentage', () => {
+  // Act — 환산 추정 금액보다 실제 한도가 사실이다
+  const title = trayTitle(activeReport(), freshLimits(71))
+
+  // Assert
+  assert.equal(title, '71%')
+})
+
+test('trayTitle shows the percentage even when the burn status is calm', () => {
+  // Act
+  const title = trayTitle(activeReport({ burnStatus: { level: 'ok', rank: 0.1 } }), freshLimits(12))
+
+  // Assert
+  assert.equal(title, '12%')
+})
+
+test('trayTitle falls back to the block cost when the limit is stale', () => {
+  // Act — 낡은 퍼센트를 그냥 띄우면 여유 있다고 오해한다
+  const title = trayTitle(activeReport(), freshLimits(17, { isStale: true, source: 'cache' }))
+
+  // Assert
+  assert.equal(title, '주의 $261')
+})
+
+test('trayTitle falls back to the block cost with no limit reading', () => {
+  // Assert
+  assert.equal(trayTitle(activeReport(), null), '주의 $261')
+  assert.equal(trayTitle(activeReport()), '주의 $261')
+})
+
+test('trayTitle falls back when the reading has no session entry', () => {
+  // Arrange
+  const weeklyOnly = freshLimits(50)
+  weeklyOnly.entries = weeklyOnly.entries.filter((e) => e.kind !== 'session')
+
+  // Assert
+  assert.equal(trayTitle(activeReport(), weeklyOnly), '주의 $261')
 })
 
 test('trayTitle stays short enough for a menu bar', () => {
-  // Act
-  const title = trayTitle(activeReport({
+  // Assert
+  assert.ok(trayTitle(activeReport(), freshLimits(100)).length <= 6)
+  assert.ok(trayTitle(activeReport({
     activeBlock: { cost: 12345.67, totalTokens: 0, requests: 0 },
     burnStatus: { level: 'crit', rank: 1 },
-  }))
-
-  // Assert — 메뉴바는 폭이 좁다. 길어지면 다른 아이콘을 밀어낸다.
-  assert.ok(title.length <= 14, `너무 김: ${title} (${title.length}자)`)
+  })).length <= 14)
 })
 
-test('trayTitle drops the cents so the width does not jitter', () => {
-  // Act & Assert — $261.22 → $261 처럼 폭이 흔들리지 않아야 한다
-  assert.doesNotMatch(trayTitle(activeReport()), /\./)
-})
-
-test('trayTitle shows nothing but the icon when no block is running', () => {
-  // Act & Assert — 쓰는 중이 아니면 보고할 것이 없다
+test('trayTitle shows nothing but the icon when nothing is running', () => {
+  // Assert
   assert.equal(trayTitle(idleReport()), '')
 })
 
 test('trayTitle survives a report that has not loaded yet', () => {
   // Assert
-  assert.equal(typeof trayTitle(null), 'string')
-  assert.equal(typeof trayTitle(undefined), 'string')
   assert.match(trayTitle(null), /-/)
+  assert.match(trayTitle(undefined, freshLimits(50)), /-/)
 })
 
 /* ---------- 툴팁 ---------- */
@@ -74,6 +105,24 @@ test('trayTooltip names the status in words, not just a glyph', () => {
   // Assert
   assert.match(tooltip, /주의/)
   assert.match(tooltip, /Stoker/)
+})
+
+test('trayTooltip explains the percentage and when it resets', () => {
+  // Act
+  const tooltip = trayTooltip(activeReport(), freshLimits(71), NOW)
+
+  // Assert
+  assert.match(tooltip, /현재 세션 71%/)
+  assert.match(tooltip, /2시간 5분 후 재설정/)
+})
+
+test('trayTooltip says the figure is cached when it fell back', () => {
+  // Act
+  const tooltip = trayTooltip(activeReport(), freshLimits(17, { isStale: true, source: 'cache' }), NOW)
+
+  // Assert
+  assert.doesNotMatch(tooltip, /현재 세션 17%/)
+  assert.match(tooltip, /주의/)
 })
 
 test('trayTooltip says plainly when nothing is running', () => {

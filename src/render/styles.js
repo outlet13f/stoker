@@ -353,4 +353,36 @@ details[open] summary { margin-bottom: 10px; }
 .colophon code { font-family: var(--mono); font-size: 12px; background: var(--surface-sunk); padding: 1px 5px; border-radius: 2px; }
 
 .empty { color: var(--ink-muted); font-size: 13px; padding: 24px 0; text-align: center; }
+
+/* ---------- 인쇄 / PDF ---------- */
+@media print {
+  /* 종이에서는 다크 테마가 잉크만 먹고 읽기도 나쁘다 — 항상 라이트로 찍는다 */
+  :root, :root[data-theme='dark'] {
+${tokensToCss(LIGHT_TOKENS)}
+    color-scheme: light;
+  }
+
+  @page { margin: 14mm; }
+
+  body { background: #FFFFFF; }
+  .shell { max-width: none; padding: 0; }
+
+  /* 조작용 요소와 실시간 표시등은 종이에 의미가 없다 */
+  .filters, .masthead-controls, .refresh-message, .date-range,
+  .date-message, .tooltip, .toggle, .live { display: none !important; }
+
+  /* 한 항목이 페이지 경계에 걸려 잘리지 않게 한다 */
+  .band, .panel, .limit, .tile, .gauge { break-inside: avoid; }
+  h1, h2, h3 { break-after: avoid; }
+  .band { padding-top: 0; margin-top: 10mm; }
+  .band:first-of-type { margin-top: 0; }
+
+  /* 차트는 배경색이 인쇄되지 않으면 빈칸이 된다 */
+  .chart, .rank-fill, .limit-fill, .bar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* 가로 스크롤 표는 종이에서 전부 보여야 한다 */
+  .scroll-x, .table-scroll { overflow: visible !important; }
+
+  a[href^='http']::after { content: ' (' attr(href) ')'; font-size: 10px; color: var(--ink-muted); }
+}
 `

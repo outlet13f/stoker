@@ -17,13 +17,24 @@ function wholeCost(amount) {
   return `$${Math.round(Number(amount) || 0).toLocaleString('en-US')}`
 }
 
+/** 믿을 수 있는(신선한) 세션 한도만 돌려준다 */
+function freshSession(limits) {
+  if (!limits || limits.isStale) return null
+  return limits.entries?.find((entry) => entry.kind === 'session') ?? null
+}
+
 /**
- * 평상시(안정)에는 금액만, 주의·높음일 때만 상태를 글자로 앞에 붙인다.
- * ●▲■ 같은 글리프는 16px 메뉴바에서 앱 아이콘과 뭉개져 구분이 되지 않는다.
- * 조용히 있다가 볼 필요가 있을 때만 눈에 걸리게 하는 것이 목적이다.
+ * 메뉴바에는 실제 세션 한도 퍼센트를 올린다 — 환산 추정 금액보다 이것이 사실이다.
+ * 숫자 자체가 신호라서 상태 단어를 덧붙이지 않는다(71% 와 96% 는 읽으면 안다).
+ *
+ * 한도가 낡았거나 없으면 금액으로 되돌아간다. 낡은 퍼센트를 그냥 띄우면
+ * 여유 있다고 오해하게 만들기 때문이다. 그때는 상태 단어를 붙여 주의를 끈다.
  */
-export function trayTitle(report) {
+export function trayTitle(report, limits = null) {
   if (!report) return PLACEHOLDER
+
+  const session = freshSession(limits)
+  if (session) return `${session.percent}%`
 
   const level = levelOf(report)
   if (level === IDLE) return ''
@@ -32,8 +43,14 @@ export function trayTitle(report) {
   return level === 'ok' ? amount : `${LEVEL_LABELS[level]} ${amount}`
 }
 
-export function trayTooltip(report) {
+export function trayTooltip(report, limits = null, now = Date.now()) {
   if (!report) return 'Stoker — 아직 불러오지 않았습니다'
+
+  const session = freshSession(limits)
+  if (session) {
+    const reset = session.resetsAt ? ` · ${formatDuration(session.resetsAt - now)} 후 재설정` : ''
+    return `Stoker — ${session.label} ${session.percent}%${reset}`
+  }
 
   const level = levelOf(report)
   if (level === IDLE) return 'Stoker — 진행 중인 블록 없음'

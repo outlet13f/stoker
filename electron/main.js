@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell, Menu } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createTray } from './tray.js'
+import { createExporter } from './export.js'
 import { startServer } from '../src/server.js'
 import { DEFAULT_REFRESH_SECONDS } from '../src/constants.js'
 
@@ -85,10 +86,17 @@ function createWindow(url) {
   return window
 }
 
-/** 새로고침·확대·개발자도구만 남긴 최소 메뉴 */
-function buildMenu(url) {
+/** 새로고침·확대·개발자도구와 출력만 남긴 최소 메뉴 */
+function buildMenu(url, exporter) {
   return Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
+    {
+      label: '파일',
+      submenu: [
+        { label: 'PDF 로 저장…', accelerator: 'CmdOrCtrl+S', click: () => void exporter.toPdf() },
+        { label: '인쇄…', accelerator: 'CmdOrCtrl+P', click: () => void exporter.print() },
+      ],
+    },
     {
       label: '보기',
       submenu: [
@@ -121,8 +129,9 @@ async function main() {
     refreshSeconds,
   })
 
-  Menu.setApplicationMenu(buildMenu(url))
   let window = createWindow(url)
+  const exporter = createExporter({ window })
+  Menu.setApplicationMenu(buildMenu(url, exporter))
 
   /** 트레이 아이콘을 눌렀을 때: 숨어 있으면 띄우고, 보이면 숨긴다 */
   function toggleWindow(forceShow = false) {
@@ -141,6 +150,7 @@ async function main() {
     url,
     refreshSeconds,
     ...parseNotifyOptions(process.argv),
+    onExportPdf: () => { toggleWindow(true); return exporter.toPdf() },
     onToggleWindow: toggleWindow,
     onQuit: () => {
       isQuitting = true

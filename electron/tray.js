@@ -21,7 +21,7 @@ function pollIntervalMs(refreshSeconds) {
  * 메뉴바 상주. 창을 닫아도 여기서 현재 소진 상태를 계속 보여준다.
  * 수치는 창과 같은 /api/report 를 읽으므로 두 화면이 어긋나지 않는다.
  */
-export function createTray({ url, refreshSeconds, onToggleWindow, onQuit, notify = true, thresholds }) {
+export function createTray({ url, refreshSeconds, onToggleWindow, onQuit, onExportPdf, notify = true, thresholds }) {
   const image = nativeImage.createFromPath(ICON)
   // 템플릿 이미지로 표시하면 macOS 가 메뉴바 명암에 맞춰 자동으로 반전한다
   image.setTemplateImage(true)
@@ -43,8 +43,8 @@ export function createTray({ url, refreshSeconds, onToggleWindow, onQuit, notify
   }
 
   function render() {
-    tray.setTitle(trayTitle(report))
-    tray.setToolTip(trayTooltip(report))
+    tray.setTitle(trayTitle(report, limits))
+    tray.setToolTip(trayTooltip(report, limits))
 
     tray.setContextMenu(
       Menu.buildFromTemplate([
@@ -54,6 +54,7 @@ export function createTray({ url, refreshSeconds, onToggleWindow, onQuit, notify
         { label: '지금 갱신', click: () => void poll() },
         { label: '알림 확인', click: () => notifier.test() },
         { label: '대시보드 열기', click: () => onToggleWindow(true) },
+        ...(onExportPdf ? [{ label: 'PDF 로 저장…', click: () => void onExportPdf() }] : []),
         { label: '브라우저에서 열기', click: () => shell.openExternal(url) },
         { type: 'separator' },
         { label: 'Stoker 종료', click: onQuit },
