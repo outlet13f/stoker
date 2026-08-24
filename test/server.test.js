@@ -173,3 +173,40 @@ test('the report API sends the bounds the CLI validates against', async () => {
     assert.deepEqual(config.refreshBounds, { min: 5, max: 3600 })
   })
 })
+
+/* ---------- 실제로 바인딩된 포트 ---------- */
+
+test('startServer reports the port the OS actually assigned', async () => {
+  // Arrange — 0 은 "빈 포트를 골라 달라"는 뜻이다
+  const root = await makeRoot()
+  const { server, url, port } = await startServer({ port: 0, timeZone: 'UTC', root })
+
+  try {
+    // Assert
+    const bound = server.address().port
+    assert.ok(bound > 0, 'OS 가 포트를 배정해야 한다')
+    assert.equal(port, bound)
+    assert.equal(url, `http://127.0.0.1:${bound}`)
+    assert.doesNotMatch(url, /:0$/, '요청값 0 이 URL 에 그대로 남으면 안 된다')
+  } finally {
+    await new Promise((resolve) => server.close(resolve))
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('the reported url is actually reachable', async () => {
+  // Arrange
+  const root = await makeRoot()
+  const { server, url } = await startServer({ port: 0, timeZone: 'UTC', root })
+
+  try {
+    // Act
+    const response = await fetch(`${url}/api/report`)
+
+    // Assert
+    assert.equal(response.status, 200)
+  } finally {
+    await new Promise((resolve) => server.close(resolve))
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})

@@ -11,7 +11,28 @@ node src/cli.js                    # 정적 HTML 생성 + 터미널 요약
 node src/cli.js --json             # 집계 결과를 JSON 으로
 ```
 
-의존성이 없습니다. Node 20 이상이면 그대로 실행됩니다.
+런타임 의존성이 없습니다. Node 20 이상이면 그대로 실행됩니다.
+데스크톱 앱으로 쓰려면 아래 **데스크톱 앱** 을 보세요(Electron 은 devDependency 입니다).
+
+## 데스크톱 앱
+
+```bash
+npm install          # electron, electron-builder (devDependency)
+npm run app          # 앱으로 실행
+npm run app:pack     # 패키징만 (release/mac-arm64/)
+npm run app:dist     # 배포본 (macOS dmg·zip / Windows nsis / Linux AppImage)
+```
+
+`electron/main.js` 는 기존 서버를 **앱 프로세스 안에서** 포트 0(OS 가 빈 포트 배정)으로
+띄우고 그 주소를 창에 로드합니다. 집계·렌더 코드는 CLI 와 완전히 같은 것을 씁니다.
+
+창은 `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true` 로 열고
+외부 링크는 기본 브라우저로 넘깁니다. 렌더러에 노출하는 API 는 없습니다.
+
+`--refresh <초>` 를 앱에도 넘길 수 있습니다: `npm run app -- --refresh 10`
+
+코드 서명은 하지 않습니다. macOS 에서 처음 열 때 Gatekeeper 경고가 나오면
+우클릭 → 열기로 실행하세요.
 
 ## 대시보드가 답하는 질문
 
@@ -131,12 +152,15 @@ src/
   render/        디자인 토큰, 스타일, 클라이언트 렌더러, HTML 조립
 scripts/
   worktree.sh    git 워크트리 생성·조회·제거·정리
+electron/
+  main.js        데스크톱 껍데기(서버를 앱 안에서 띄우고 창에 로드)
+  preload.js     의도적으로 빈 preload
 ```
 
 ## 개발
 
 ```bash
-npm test          # node:test, 216개
+npm test          # node:test, 219개
 npm run coverage  # 라인 99.9% / 브랜치 96.3%
 ```
 

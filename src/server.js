@@ -89,5 +89,8 @@ export async function startServer({
     server.listen(port, '127.0.0.1', resolve)
   })
 
-  return { server, url: `http://127.0.0.1:${port}` }
+  // port 0 은 "빈 포트를 골라 달라"는 뜻이므로 요청값이 아니라 배정된 값을 돌려준다
+  const { port: boundPort } = server.address()
+
+  return { server, port: boundPort, url: `http://127.0.0.1:${boundPort}` }
 }
