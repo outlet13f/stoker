@@ -18,7 +18,8 @@ export function createNotifier({ onActivate } = {}) {
   let lastError = null
   let delivered = 0
 
-  function send({ title, body }) {
+  /** onClick 을 주면 그것이, 없으면 기본 동작(창 열기)이 걸린다 */
+  function send({ title, body, onClick }) {
     if (!Notification.isSupported()) {
       lastError = '이 시스템은 알림을 지원하지 않습니다'
       return
@@ -33,7 +34,9 @@ export function createNotifier({ onActivate } = {}) {
       lastError = null
       delivered += 1
     })
-    if (onActivate) notification.on('click', () => onActivate())
+
+    const activate = onClick ?? onActivate
+    if (activate) notification.on('click', () => activate())
 
     notification.show()
   }
@@ -42,6 +45,11 @@ export function createNotifier({ onActivate } = {}) {
     show(alerts) {
       for (const alert of alerts) send(alert)
       return alerts.length
+    },
+
+    /** 알림 하나를 직접 띄운다(출력 결과 알림 등) */
+    notify(alert) {
+      send(alert)
     },
 
     /** 사용자가 직접 확인할 수 있게 표본 하나를 띄운다 */

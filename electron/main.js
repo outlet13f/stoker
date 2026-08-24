@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createTray } from './tray.js'
 import { createExporter } from './export.js'
+import { createNotifier } from './notify.js'
 import { startServer } from '../src/server.js'
 import { DEFAULT_REFRESH_SECONDS } from '../src/constants.js'
 
@@ -93,7 +94,7 @@ function buildMenu(url, exporter) {
     {
       label: '파일',
       submenu: [
-        { label: 'PDF 로 저장…', accelerator: 'CmdOrCtrl+S', click: () => void exporter.toPdf() },
+        { label: 'PDF 저장 (다운로드 폴더)', accelerator: 'CmdOrCtrl+S', click: () => void exporter.toPdf() },
         { label: '인쇄…', accelerator: 'CmdOrCtrl+P', click: () => void exporter.print() },
       ],
     },
@@ -130,7 +131,22 @@ async function main() {
   })
 
   let window = createWindow(url)
-  const exporter = createExporter({ window })
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const notifier = createNotifier({ onActivate: () => toggleWindow(true) })
+
+  // 대화상자 없이 저장하므로 결과를 반드시 알린다. 누르면 Finder 에서 보여 준다.
+  const exporter = createExporter({
+    window,
+    timeZone,
+    onSaved: (target) =>
+      notifier.notify({
+        title: 'PDF 저장 완료',
+        body: `다운로드 › ${path.basename(target)}`,
+        onClick: () => exporter.reveal(target),
+      }),
+    onFailed: (reason) => notifier.notify({ title: 'PDF 저장 실패', body: reason }),
+  })
+
   Menu.setApplicationMenu(buildMenu(url, exporter))
 
   /** 트레이 아이콘을 눌렀을 때: 숨어 있으면 띄우고, 보이면 숨긴다 */
@@ -149,6 +165,7 @@ async function main() {
   const tray = createTray({
     url,
     refreshSeconds,
+    notifier,
     ...parseNotifyOptions(process.argv),
     onExportPdf: () => { toggleWindow(true); return exporter.toPdf() },
     onToggleWindow: toggleWindow,

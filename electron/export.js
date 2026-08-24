@@ -1,9 +1,14 @@
-import { dialog } from 'electron'
-import fs from 'node:fs/promises'
-import path from 'node:path'
+import { app, shell } from 'electron'
+import fs from 'node:fs'
+import fsp from 'node:fs/promises'
+import { reportFileName, uniquePath } from './export-path.js'
 
 /**
  * 대시보드를 PDF 로 저장하거나 프린터로 보낸다.
+ *
+ * 저장은 대화상자 없이 바로 다운로드 폴더에 떨어뜨린다. 대신 저장됐는지
+ * 알 방법이 사라지므로 결과를 반드시 알린다 — 조용히 성공하거나 조용히
+ * 실패하는 출력 기능은 없는 것보다 나쁘다.
  *
  * 접힌 데이터 표(`<details>`)는 CSS 로 펼 수 없으므로 출력 직전에 열고 끝나면
  * 되돌린다. 열지 않으면 종이에는 차트만 남고 숫자가 빠진다.
@@ -15,13 +20,6 @@ const PDF_OPTIONS = {
   preferCSSPageSize: true,
 }
 
-/** 파일명에 쓸 수 있는 날짜 */
-function stamp(now) {
-  const iso = new Date(now).toISOString()
-  return `${iso.slice(0, 10)}-${iso.slice(11, 16).replace(':', '')}`
-}
-
-/** 출력 동안만 접힌 표를 펼친다. 되돌릴 정보를 함께 돌려준다. */
 const OPEN_DETAILS = `(() => {
   const closed = [...document.querySelectorAll('details:not([open])')]
   closed.forEach((node) => { node.open = true })
@@ -44,24 +42,40 @@ async function withDetailsOpen(contents, run) {
   }
 }
 
-export function createExporter({ window, now = () => Date.now() } = {}) {
+export function createExporter({
+  window,
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+  onSaved,
+  onFailed,
+  now = () => Date.now(),
+} = {}) {
   return {
-    /** @returns {Promise<string|null>} 저장한 경로. 취소하면 null. */
+    /** @returns {Promise<string|null>} 저장한 경로. 실패하면 null. */
     async toPdf() {
-      const { canceled, filePath } = await dialog.showSaveDialog(window, {
-        title: '리포트를 PDF 로 저장',
-        defaultPath: path.join('~', 'Downloads', `stoker-${stamp(now())}.pdf`).replace(/^~/, process.env.HOME ?? '~'),
-        filters: [{ name: 'PDF', extensions: ['pdf'] }],
-      })
+      let target
+      try {
+        const directory = app.getPath('downloads')
+        await fsp.mkdir(directory, { recursive: true })
+        target = uniquePath(directory, reportFileName(now(), timeZone), (candidate) =>
+          fs.existsSync(candidate),
+        )
 
-      if (canceled || !filePath) return null
+        const data = await withDetailsOpen(window.webContents, () =>
+          window.webContents.printToPDF(PDF_OPTIONS),
+        )
+        await fsp.writeFile(target, data)
+      } catch (error) {
+        onFailed?.(error.message)
+        return null
+      }
 
-      const data = await withDetailsOpen(window.webContents, () =>
-        window.webContents.printToPDF(PDF_OPTIONS),
-      )
+      onSaved?.(target)
+      return target
+    },
 
-      await fs.writeFile(filePath, data)
-      return filePath
+    /** 저장한 파일을 Finder 에서 보여 준다 */
+    reveal(target) {
+      shell.showItemInFolder(target)
     },
 
     /** @returns {Promise<boolean>} 인쇄를 시작했는지 */
