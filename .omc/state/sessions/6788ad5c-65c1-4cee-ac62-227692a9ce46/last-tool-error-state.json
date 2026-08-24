@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__playwright__browser_navigate",
+  "tool_input_preview": "{\"url\":\"file:///private/tmp/claude-501/-Users-duksang/6788ad5c-65c1-4cee-ac62-227692a9ce46/scratchpad/dashboard.html\"}",
+  "error": "### Error\nError: Access to \"file:\" protocol is blocked. Attempted URL: \"file:///private/tmp/claude-501/-Users-duksang/6788ad5c-65c1-4cee-ac62-227692a9ce46/scratchpad/dashboard.html\"",
+  "timestamp": "2026-08-24T04:41:39.701Z",
+  "retry_count": 1
+}
