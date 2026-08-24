@@ -323,63 +323,64 @@ test('the polling refresh keeps requesting the chosen custom window', async () =
 
 /* ---------- 자동 갱신 주기 ---------- */
 
+async function setInterval_(harness, raw) {
+  const input = harness.nodes.get('refresh-input')
+  input.value = String(raw)
+  await input.fire('change')
+  return input
+}
+
 test('the client schedules polling at the interval the server advertised', async () => {
   // Act
   const harness = await boot({ config: { refreshSeconds: 10 } })
 
   // Assert
   assert.equal(harness.intervals.at(-1).ms, 10_000)
+  assert.equal(harness.nodes.get('refresh-input').value, '10')
 })
 
-test('the refresh control lists every offered interval with the current one selected', async () => {
-  // Act
-  const { nodes } = await boot({ config: { refreshSeconds: 60 } })
-
-  // Assert
-  const html = nodes.get('refresh-select').innerHTML
-  assert.match(html, /갱신 멈춤/)
-  assert.match(html, /5초마다/)
-  assert.match(html, /1분마다/)
-  assert.match(html, /5분마다/)
-  assert.match(html, /value="60" selected/)
-})
-
-test('changing the interval reschedules polling and clears the old timer', async () => {
+test('the user can type an interval that is not one of the presets', async () => {
   // Arrange
   const harness = await boot({ config: { refreshSeconds: 30 } })
-  const firstTimer = harness.intervals.at(-1).id
-  const select = harness.nodes.get('refresh-select')
+  const first = harness.intervals.at(-1).id
 
   // Act
-  select.value = '5'
-  await select.fire('change')
+  await setInterval_(harness, 12)
 
   // Assert
-  assert.ok(harness.cleared.includes(firstTimer), '이전 타이머를 해제해야 한다')
-  assert.equal(harness.intervals.at(-1).ms, 5_000)
+  assert.ok(harness.cleared.includes(first), '이전 타이머를 해제해야 한다')
+  assert.equal(harness.intervals.at(-1).ms, 12_000)
+  assert.equal(harness.store.get('claude-usage-dashboard.refreshSeconds'), '12')
 })
 
-test('choosing 갱신 멈춤 stops polling entirely', async () => {
+test('the user can type the maximum interval', async () => {
+  // Arrange
+  const harness = await boot()
+
+  // Act
+  await setInterval_(harness, 3600)
+
+  // Assert
+  assert.equal(harness.intervals.at(-1).ms, 3_600_000)
+})
+
+test('typing zero pauses refreshing altogether', async () => {
   // Arrange
   const harness = await boot({ config: { refreshSeconds: 30 } })
   const before = harness.intervals.length
-  const select = harness.nodes.get('refresh-select')
 
   // Act
-  select.value = '0'
-  await select.fire('change')
+  await setInterval_(harness, 0)
 
   // Assert
   assert.equal(harness.intervals.length, before, '새 타이머를 걸지 않아야 한다')
-  assert.match(select.innerHTML, /value="0" selected/)
+  assert.match(harness.nodes.get('refresh-message').textContent, /멈춤/)
 })
 
 test('a paused dashboard does not refresh when the tab regains focus', async () => {
   // Arrange
   const harness = await boot({ config: { refreshSeconds: 30 } })
-  const select = harness.nodes.get('refresh-select')
-  select.value = '0'
-  await select.fire('change')
+  await setInterval_(harness, 0)
   const before = harness.calls.length
 
   // Act
@@ -389,41 +390,103 @@ test('a paused dashboard does not refresh when the tab regains focus', async () 
   assert.equal(harness.calls.length, before)
 })
 
-test('the chosen interval is remembered across reloads', async () => {
-  // Arrange & Act
+test('an interval below the floor is refused and the old one kept', async () => {
+  // Arrange
   const harness = await boot({ config: { refreshSeconds: 30 } })
-  const select = harness.nodes.get('refresh-select')
-  select.value = '5'
-  await select.fire('change')
+  const before = harness.intervals.length
+
+  // Act
+  await setInterval_(harness, 3)
 
   // Assert
-  assert.equal(harness.store.get('claude-usage-dashboard.refreshSeconds'), '5')
+  assert.equal(harness.intervals.length, before, '타이머를 다시 걸지 않아야 한다')
+  assert.match(harness.nodes.get('refresh-message').textContent, /5/)
+  assert.equal(harness.nodes.get('refresh-message').dataset.state, 'error')
+  assert.equal(harness.nodes.get('refresh-input').value, '30', '거부되면 이전 값으로 되돌린다')
 })
 
-test('a remembered interval wins over the server default', async () => {
+test('an interval above the ceiling is refused', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+
   // Act
-  const harness = await boot({ config: { refreshSeconds: 30 }, stored: 60 })
+  await setInterval_(harness, 99999)
 
   // Assert
-  assert.equal(harness.intervals.at(-1).ms, 60_000)
-  assert.match(harness.nodes.get('refresh-select').innerHTML, /value="60" selected/)
+  assert.match(harness.nodes.get('refresh-message').textContent, /3600/)
+  assert.equal(harness.nodes.get('refresh-input').value, '30')
 })
 
-test('a remembered interval that is no longer offered falls back to the server default', async () => {
+test('a non-numeric interval is refused', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+
   // Act
-  const harness = await boot({ config: { refreshSeconds: 30 }, stored: 7 })
+  await setInterval_(harness, 'often')
+
+  // Assert
+  assert.match(harness.nodes.get('refresh-message').textContent, /숫자/)
+  assert.equal(harness.nodes.get('refresh-input').value, '30')
+})
+
+test('a fractional interval is refused rather than silently rounded', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+
+  // Act
+  await setInterval_(harness, 12.5)
+
+  // Assert
+  assert.match(harness.nodes.get('refresh-message').textContent, /정수/)
+  assert.equal(harness.nodes.get('refresh-input').value, '30')
+})
+
+test('the input validates against the bounds the server sent', async () => {
+  // Arrange — 서버가 하한을 60 으로 알려주면 그 기준으로 거부한다
+  const harness = await boot({ config: { refreshSeconds: 60, refreshBounds: { min: 60, max: 120 } } })
+
+  // Act
+  await setInterval_(harness, 30)
+
+  // Assert
+  assert.match(harness.nodes.get('refresh-message').textContent, /60/)
+})
+
+test('presets are offered as suggestions without limiting what can be typed', async () => {
+  // Act
+  const { nodes } = await boot()
+
+  // Assert
+  const options = nodes.get('refresh-presets').innerHTML
+  for (const seconds of [5, 10, 30, 60, 300]) {
+    assert.match(options, new RegExp(`value="${seconds}"`))
+  }
+})
+
+test('any remembered interval wins over the server default', async () => {
+  // Act — 프리셋에 없는 값이어도 기억한다
+  const harness = await boot({ config: { refreshSeconds: 30 }, stored: 42 })
+
+  // Assert
+  assert.equal(harness.intervals.at(-1).ms, 42_000)
+  assert.equal(harness.nodes.get('refresh-input').value, '42')
+})
+
+test('a remembered interval outside the bounds falls back to the server default', async () => {
+  // Act
+  const harness = await boot({ config: { refreshSeconds: 30 }, stored: 2 })
 
   // Assert
   assert.equal(harness.intervals.at(-1).ms, 30_000)
 })
 
-test('the refresh control is disabled in a static export', async () => {
+test('the refresh input is disabled in a static export', async () => {
   // Act
   const { nodes } = await boot({ live: false, config: { refreshSeconds: 0 } })
 
   // Assert
-  assert.equal(nodes.get('refresh-select').disabled, true)
-  assert.match(nodes.get('refresh-select').title, /자동 갱신이 없습니다/)
+  assert.equal(nodes.get('refresh-input').disabled, true)
+  assert.match(nodes.get('refresh-message').textContent, /자동 갱신이 없습니다/)
 })
 
 test('a static export schedules no polling at all', async () => {

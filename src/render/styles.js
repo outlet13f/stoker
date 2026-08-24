@@ -254,13 +254,26 @@ tbody tr:last-child td { border-bottom: none; }
 
 /* 헤더 제어(갱신 주기 · 테마) */
 .masthead-controls { display: inline-flex; align-items: center; gap: 8px; }
-select.toggle { appearance: none; padding-right: 22px;
-  background-image: linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%),
-    linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
-  background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%;
-  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+
+.refresh-control {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 12px; color: var(--ink-muted);
+  padding: 4px 9px; border: 1px solid var(--line-strong);
+  background: var(--surface); border-radius: 2px;
 }
-select.toggle:disabled { color: var(--ink-faint); cursor: not-allowed; }
+.refresh-control:focus-within { border-color: var(--accent); }
+.refresh-prefix, .refresh-suffix { color: var(--ink-faint); }
+.refresh-input {
+  width: 4ch; padding: 0; border: 0; background: none;
+  font-family: var(--mono); font-size: 12px; color: var(--ink);
+  text-align: right; appearance: textfield;
+}
+.refresh-input::-webkit-outer-spin-button,
+.refresh-input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.refresh-input:focus { outline: none; }
+.refresh-input:disabled { color: var(--ink-faint); cursor: not-allowed; }
+.refresh-message { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); }
+.refresh-message[data-state="error"] { color: var(--crit); }
 
 /* 날짜 직접 선택 */
 .date-range { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: 10px; }

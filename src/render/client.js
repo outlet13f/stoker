@@ -827,19 +827,60 @@ async function refresh() {
 
 /* ---------- 자동 갱신 주기 ---------- */
 const REFRESH_PREF_KEY = 'claude-usage-dashboard.refreshSeconds'
-const DEFAULT_REFRESH_CHOICES = [0, 5, 10, 30, 60, 300]
+const DEFAULT_REFRESH_PRESETS = [5, 10, 30, 60, 300]
+const DEFAULT_REFRESH_BOUNDS = { min: 5, max: 3600 }
+const PAUSED = 0
 
 let refreshTimer = null
 
-function refreshChoices() {
-  const offered = state.config.refreshChoices
-  return Array.isArray(offered) && offered.length > 0 ? offered : DEFAULT_REFRESH_CHOICES
+function refreshBounds() {
+  const sent = state.config.refreshBounds
+  const min = Number(sent?.min)
+  const max = Number(sent?.max)
+
+  return Number.isFinite(min) && Number.isFinite(max) && min <= max
+    ? { min, max }
+    : DEFAULT_REFRESH_BOUNDS
 }
 
-function refreshLabel(seconds) {
-  if (seconds === 0) return '갱신 멈춤'
-  if (seconds % 60 === 0) return `${seconds / 60}분마다`
-  return `${seconds}초마다`
+function refreshPresets() {
+  const offered = state.config.refreshChoices
+  const list = Array.isArray(offered) && offered.length > 0 ? offered : DEFAULT_REFRESH_PRESETS
+  // 0(멈춤)은 제안 목록에서 빼고 입력으로만 받는다
+  return list.filter((seconds) => seconds !== PAUSED)
+}
+
+/**
+ * 사용자가 적은 값을 초 단위 주기로 해석한다.
+ * 서버가 알려준 범위로 검증하므로 CLI 와 같은 기준이 적용된다.
+ * @returns {{ seconds: number } | { error: string }}
+ */
+function readRefreshInput(raw) {
+  const text = String(raw ?? '').trim()
+  if (text === '') return { error: '갱신 주기를 입력하세요 (0 은 멈춤)' }
+
+  const value = Number(text)
+  if (!Number.isFinite(value)) return { error: `숫자가 아닙니다: ${text}` }
+  if (!Number.isInteger(value)) return { error: '정수로 입력하세요' }
+  if (value === PAUSED) return { seconds: PAUSED }
+
+  const { min, max } = refreshBounds()
+  if (value < min) return { error: `${min}초 이상이어야 합니다 (0 은 멈춤)` }
+  if (value > max) return { error: `${max}초 이하여야 합니다` }
+
+  return { seconds: value }
+}
+
+function refreshStatusText(seconds) {
+  if (!state.config.live) return '정적 스냅샷이라 자동 갱신이 없습니다'
+  return seconds === PAUSED ? '갱신 멈춤' : `${seconds}초마다 갱신`
+}
+
+function setRefreshMessage(text, isError) {
+  const node = $('refresh-message')
+  if (!node) return
+  node.textContent = text
+  node.dataset.state = isError ? 'error' : 'info'
 }
 
 /** localStorage 는 사파리 프라이버시 모드 등에서 던진다. 취향 저장은 실패해도 그냥 넘긴다. */
@@ -850,8 +891,8 @@ function readRefreshPreference() {
     const raw = window.localStorage?.getItem(REFRESH_PREF_KEY)
     if (raw === null || raw === undefined || raw === '') return null
 
-    const stored = Number(raw)
-    return Number.isFinite(stored) && stored >= 0 ? stored : null
+    const parsed = readRefreshInput(raw)
+    return parsed.error === undefined ? parsed.seconds : null
   } catch {
     return null
   }
@@ -865,54 +906,74 @@ function writeRefreshPreference(seconds) {
   }
 }
 
-/** 타이머를 매번 새로 건다. 0 이거나 정적 스냅샷이면 걸지 않는다. */
+/** 타이머를 매번 새로 건다. 멈춤이거나 정적 스냅샷이면 걸지 않는다. */
 function scheduleRefresh() {
   if (refreshTimer !== null) {
     clearInterval(refreshTimer)
     refreshTimer = null
   }
 
-  if (!state.config.live || !state.refreshSeconds) return
+  if (!state.config.live || state.refreshSeconds === PAUSED) return
   refreshTimer = setInterval(refresh, state.refreshSeconds * 1000)
 }
 
 function renderRefreshControl() {
-  const select = $('refresh-select')
-  if (!select) return
+  const input = $('refresh-input')
+  if (!input) return
 
-  const choices = refreshChoices()
-  select.innerHTML = choices
-    .map((seconds) => `<option value="${seconds}"${seconds === state.refreshSeconds ? ' selected' : ''}>${esc(refreshLabel(seconds))}</option>`)
-    .join('')
-
-  select.disabled = !state.config.live
-  select.title = state.config.live
-    ? '자동 갱신 주기'
+  const { min, max } = refreshBounds()
+  input.value = String(state.refreshSeconds)
+  input.min = '0'
+  input.max = String(max)
+  input.disabled = !state.config.live
+  input.title = state.config.live
+    ? `자동 갱신 주기 (${min}~${max}초, 0 은 멈춤)`
     : '정적 스냅샷이라 자동 갱신이 없습니다'
+
+  const presets = $('refresh-presets')
+  if (presets) {
+    presets.innerHTML = refreshPresets()
+      .map((seconds) => `<option value="${seconds}"></option>`)
+      .join('')
+  }
+
+  setRefreshMessage(refreshStatusText(state.refreshSeconds), false)
+}
+
+function applyRefreshInput() {
+  const input = $('refresh-input')
+  const parsed = readRefreshInput(input.value)
+
+  if (parsed.error !== undefined) {
+    // 거부하면 이전 값으로 되돌린다. 잘못된 값이 남아 오해를 만들지 않게.
+    input.value = String(state.refreshSeconds)
+    setRefreshMessage(parsed.error, true)
+    return
+  }
+
+  state.refreshSeconds = parsed.seconds
+  writeRefreshPreference(parsed.seconds)
+  scheduleRefresh()
+  renderRefreshControl()
 }
 
 function bindRefreshControl() {
-  const select = $('refresh-select')
-  if (!select) return
+  const input = $('refresh-input')
+  if (!input) return
 
-  select.addEventListener('change', () => {
-    const seconds = Number(select.value)
-    if (!Number.isFinite(seconds) || seconds < 0) return
-
-    state.refreshSeconds = seconds
-    writeRefreshPreference(seconds)
-    scheduleRefresh()
-    renderRefreshControl()
+  input.addEventListener('change', applyRefreshInput)
+  input.addEventListener('keydown', (event) => {
+    if (event?.key === 'Enter') applyRefreshInput()
   })
 }
 
-/** 저장된 취향 > 서버가 준 기본값 > 30초 */
+/** 저장된 취향 > 서버가 준 기본값 > 하한 */
 function initialRefreshSeconds() {
   const stored = readRefreshPreference()
-  if (stored !== null && refreshChoices().includes(stored)) return stored
+  if (stored !== null) return stored
 
-  const fromServer = Number(state.config.refreshSeconds)
-  return Number.isFinite(fromServer) && fromServer >= 0 ? fromServer : 30
+  const fromServer = readRefreshInput(state.config.refreshSeconds)
+  return fromServer.error === undefined ? fromServer.seconds : refreshBounds().min
 }
 
 function boot() {

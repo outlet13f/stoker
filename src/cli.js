@@ -8,7 +8,7 @@ import { buildReportSet } from './report.js'
 import { renderPage } from './render/html.js'
 import { renderSummary } from './summary.js'
 import { startServer } from './server.js'
-import { REFRESH_CHOICES } from './constants.js'
+import { REFRESH_CHOICES, MIN_REFRESH_SECONDS, MAX_REFRESH_SECONDS } from './constants.js'
 
 const DEFAULT_OUT = path.join(process.cwd(), 'dist', 'dashboard.html')
 
@@ -71,6 +71,7 @@ async function runBuild(options) {
       fileCount: stats.fileCount,
       refreshSeconds: 0,
       refreshChoices: REFRESH_CHOICES,
+      refreshBounds: { min: MIN_REFRESH_SECONDS, max: MAX_REFRESH_SECONDS },
     },
   })
 

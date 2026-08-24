@@ -1,5 +1,11 @@
 import http from 'node:http'
-import { DEFAULT_PORT, DEFAULT_REFRESH_SECONDS, REFRESH_CHOICES } from './constants.js'
+import {
+  DEFAULT_PORT,
+  DEFAULT_REFRESH_SECONDS,
+  REFRESH_CHOICES,
+  MIN_REFRESH_SECONDS,
+  MAX_REFRESH_SECONDS,
+} from './constants.js'
 import { createCollector } from './collector.js'
 import { buildReportSet } from './report.js'
 import { parseDateRange } from './daterange.js'
@@ -21,6 +27,8 @@ function createSnapshotSource({ timeZone, root, refreshSeconds }) {
         live: true,
         refreshSeconds,
         refreshChoices: REFRESH_CHOICES,
+        // 클라이언트가 CLI 와 같은 기준으로 검증하도록 범위를 함께 내려보낸다
+        refreshBounds: { min: MIN_REFRESH_SECONDS, max: MAX_REFRESH_SECONDS },
         timeZone,
         fileCount: stats.fileCount,
         collectMs: stats.durationMs,

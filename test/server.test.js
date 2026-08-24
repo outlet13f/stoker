@@ -160,9 +160,16 @@ test('the report API can advertise auto refresh being off', async () => {
   }, { refreshSeconds: 0 })
 })
 
-test('the report API offers the selectable refresh intervals', async () => {
+test('the report API offers preset refresh intervals as suggestions', async () => {
   await withServer(async (base) => {
     const { config } = await (await fetch(`${base}/api/report`)).json()
     assert.deepEqual(config.refreshChoices, [0, 5, 10, 30, 60, 300])
+  })
+})
+
+test('the report API sends the bounds the CLI validates against', async () => {
+  await withServer(async (base) => {
+    const { config } = await (await fetch(`${base}/api/report`)).json()
+    assert.deepEqual(config.refreshBounds, { min: 5, max: 3600 })
   })
 })

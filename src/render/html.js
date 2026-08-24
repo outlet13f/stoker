@@ -45,10 +45,17 @@ function bodyMarkup() {
         <span>기간 <b id="span-text">-</b></span>
       </div>
       <div class="masthead-controls">
-        <label class="sr-only" for="refresh-select">자동 갱신 주기</label>
-        <select class="toggle" id="refresh-select"></select>
+        <label class="sr-only" for="refresh-input">자동 갱신 주기(초). 0 은 멈춤</label>
+        <span class="refresh-control">
+          <span class="refresh-prefix" aria-hidden="true">갱신</span>
+          <input class="refresh-input" id="refresh-input" type="number"
+            inputmode="numeric" list="refresh-presets" step="1">
+          <span class="refresh-suffix" aria-hidden="true">초</span>
+        </span>
+        <datalist id="refresh-presets"></datalist>
         <button class="toggle" id="theme-toggle" type="button">테마 전환</button>
       </div>
+      <span class="refresh-message" id="refresh-message" role="status"></span>
     </div>
   </header>
 
