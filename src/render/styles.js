@@ -5,8 +5,10 @@ const DARK_BLOCK = tokensToCss(DARK_TOKENS)
 export const STYLES = `
 :root {
 ${tokensToCss(LIGHT_TOKENS)}
-  --display: 'Archivo', 'IBM Plex Sans KR', system-ui, sans-serif;
-  --body: 'IBM Plex Sans KR', 'Archivo', system-ui, sans-serif;
+  /* 라틴은 번들된 웹폰트, 한글은 시스템 서체로 떨어진다(웹폰트로 받으면 수 MB) */
+  --korean: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+  --display: 'Archivo', var(--korean), system-ui;
+  --body: -apple-system, BlinkMacSystemFont, var(--korean), system-ui;
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
   --gutter: clamp(16px, 4vw, 40px);
   --band-gap: clamp(32px, 5vw, 56px);
@@ -336,7 +338,9 @@ tbody tr:last-child td { border-bottom: none; }
 /* ---------- 데이터 표 접기 ---------- */
 details { border-top: 1px solid var(--line); padding-top: 10px; }
 summary { cursor: pointer; font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-faint); }
-summary:hover { color: var(--accent); }
+/* accent 는 브랜드색이라 3.56:1 로 텍스트 대비가 모자란다. 색을 바꾸는 대신
+   글자는 ink 로 두고 accent 는 밑줄로 보낸다. */
+summary:hover { color: var(--ink); text-decoration-color: var(--accent); }
 details[open] summary { margin-bottom: 10px; }
 .table-scroll { overflow-x: auto; max-height: 320px; }
 .scroll-x { overflow-x: auto; }

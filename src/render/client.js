@@ -384,7 +384,7 @@ function dataTable(headers, rows) {
   if (rows.length === 0) return '<p class="empty">표시할 데이터가 없습니다.</p>'
 
   return `<div class="table-scroll"><table>
-    <thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+    <thead><tr>${headers.map((h) => `<th scope="col">${esc(h)}</th>`).join('')}</tr></thead>
     <tbody>${rows.map((cells) => `<tr>${cells.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
   </table></div>`
 }
@@ -423,7 +423,7 @@ function rankTable({ rows, nameOf, subOf, swatchOf, total, weightOf = (row) => r
   }).join('')
 
   return `<div class="scroll-x"><table>
-    <thead><tr><th>이름</th>${columns.map((column) => `<th>${esc(column.header)}</th>`).join('')}</tr></thead>
+    <thead><tr><th scope="col">이름</th>${columns.map((column) => `<th scope="col">${esc(column.header)}</th>`).join('')}</tr></thead>
     <tbody>${body}</tbody>
   </table></div>`
 }
@@ -471,7 +471,7 @@ function renderBreakdowns(report) {
  * 구성 띠 하나. 실제 비율대로 그리되, 0 이 아닌 조각은
  * 최소 폭을 남겨 사라지지 않게 한다.
  */
-function compositionBar(totals, field, valueFormat) {
+function compositionBar(totals, field, valueFormat, ariaLabel) {
   const sum = TOKEN_BUCKETS.reduce((acc, bucket) => acc + totals[bucket[field]], 0)
   if (sum === 0) return { svg: '<p class="empty">데이터가 없습니다.</p>', sum }
 
@@ -496,7 +496,7 @@ function compositionBar(totals, field, valueFormat) {
 
   return {
     svg: `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${width} ${height}" role="img"
-      aria-label="토큰 종류별 구성">${segments}</svg></div>`,
+      aria-label="${esc(ariaLabel)}">${segments}</svg></div>`,
     sum,
   }
 }
@@ -513,8 +513,8 @@ function compositionLegend(totals, field, valueFormat, sum) {
 function renderTokenFlow(report) {
   const totals = report.range
 
-  const volume = compositionBar(totals, 'field', formatTokens)
-  const spend = compositionBar(totals, 'costField', formatCost)
+  const volume = compositionBar(totals, 'field', formatTokens, '토큰 종류별 구성 — 토큰 수 기준')
+  const spend = compositionBar(totals, 'costField', formatCost, '토큰 종류별 구성 — 비용 기준')
 
   if (volume.sum === 0) {
     $('flow-volume').innerHTML = '<p class="empty">이 기간에는 토큰 사용이 없습니다.</p>'
@@ -686,7 +686,7 @@ function renderSessions(report) {
   }
 
   $('sessions').innerHTML = `<div class="scroll-x"><table>
-    <thead><tr><th>세션</th><th>프로젝트</th><th>마지막 활동</th><th>비용</th><th>토큰</th><th>요청</th></tr></thead>
+    <thead><tr><th scope="col">세션</th><th scope="col">프로젝트</th><th scope="col">마지막 활동</th><th scope="col">비용</th><th scope="col">토큰</th><th scope="col">요청</th></tr></thead>
     <tbody>${report.topSessions.map((session) => `<tr>
       <td><span class="rank-sub">${esc(session.key.slice(0, 8))}</span></td>
       <td>${esc(session.projectLabel || '-')}</td>
@@ -705,9 +705,10 @@ function renderColophon(report) {
   $('colophon-stats').innerHTML = `
     <li>집계 대상: <code>~/.claude/projects</code> 아래 트랜스크립트 ${state.config.fileCount ?? '-'}개,
       중복 제거 후 ${report.allTime.requests.toLocaleString('en-US')}건의 어시스턴트 응답</li>
-    <li>사용량 집계는 전부 로컬에서 합니다. 나가는 요청은 두 가지뿐입니다 —
-      계정 한도 조회(<code>api.anthropic.com/api/oauth/usage</code>, <code>--no-live-limits</code> 로 끔)와
-      웹폰트(<code>fonts.googleapis.com</code>).</li>
+    <li>사용량 집계는 전부 로컬에서 합니다. 웹폰트는 파일에 함께 심어 두었으므로
+      나가는 요청은 계정 한도 조회 하나뿐이고
+      (<code>api.anthropic.com/api/oauth/usage</code>), <code>--no-live-limits</code> 로 끄면
+      아무 요청도 나가지 않습니다.</li>
     <li>금액은 <strong>공개 API 단가로 환산한 참고값</strong>입니다. 구독 요금제라면 실제 청구액이 아니라
       "같은 작업을 API로 했다면" 값으로 읽으세요.</li>
     <li>5시간 블록은 첫 활동을 정시에 앵커해 계산하며, 5시간 이상 공백이 생기면 새 블록으로 셉니다.</li>
@@ -740,8 +741,8 @@ function renderRateCard(report) {
 
   $('rate-card').innerHTML = `<div class="scroll-x"><table>
     <thead><tr>
-      <th>모델</th><th>input</th><th>output</th>
-      <th>캐시 쓰기 5m</th><th>캐시 쓰기 1h</th><th>캐시 읽기</th>
+      <th scope="col">모델</th><th scope="col">input</th><th scope="col">output</th>
+      <th scope="col">캐시 쓰기 5m</th><th scope="col">캐시 쓰기 1h</th><th scope="col">캐시 읽기</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`
@@ -749,16 +750,35 @@ function renderRateCard(report) {
 
 
 /* ---------- 기간 필터 ---------- */
+/**
+ * 칩을 매번 다시 만들면 30초 갱신마다 키보드 포커스가 body 로 떨어진다.
+ * 기간 목록 자체가 바뀔 때만 다시 만들고, 그 외에는 눌린 상태만 갱신한다.
+ * 클릭은 컨테이너에 한 번 위임해 두므로 버튼을 다시 만들어도 살아 있다.
+ */
 function renderFilters() {
-  $('filters').innerHTML = Object.keys(state.reports).map((key) => `
+  const container = $('filters')
+  const keys = Object.keys(state.reports)
+  const signature = keys.join(',')
+
+  if (container.dataset.signature !== signature) {
+    container.innerHTML = keys.map((key) => `
     <button class="chip" type="button" data-range="${esc(key)}"
       aria-pressed="${key === state.range}">${esc(RANGE_LABELS[key] || key)}</button>`).join('')
+    container.dataset.signature = signature
+  }
 
-  $('filters').querySelectorAll('[data-range]').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.range = button.dataset.range
-      renderAll()
-    })
+  for (const button of container.querySelectorAll('[data-range]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.range === state.range))
+  }
+}
+
+function bindFilters() {
+  $('filters')?.addEventListener('click', (event) => {
+    const range = event?.target?.dataset?.range
+    if (!range) return
+
+    state.range = range
+    renderAll()
   })
 }
 
@@ -1088,6 +1108,7 @@ function boot() {
   tooltip.node = $('tooltip')
   state.connection = state.config.live ? 'live' : 'static'
   state.refreshSeconds = initialRefreshSeconds()
+  bindFilters()
   bindDateRange()
   bindRefreshControl()
   renderAll()

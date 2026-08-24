@@ -1,5 +1,5 @@
 import { STYLES } from './styles.js'
-import { FONT_HREF } from './theme.js'
+import { buildFontFaceCss } from './fonts.js'
 import { buildClientScript } from './bundle.js'
 
 const PAGE_TITLE = 'Stoker'
@@ -9,13 +9,16 @@ function embedJson(value) {
   return JSON.stringify(value).replace(/</g, '\\u003c')
 }
 
+/** 라벨 없는 section 은 a11y 트리에서 region 으로 노출되지 않는다 */
 function band({ question, heading, note, body }) {
+  const headingId = `band-${heading.replace(/[^가-힣A-Za-z0-9]+/g, '-')}`
+
   return `
-  <section class="band">
+  <section class="band" aria-labelledby="${headingId}">
     <div class="band-head">
       <div>
         <p class="eyebrow">${question}</p>
-        <h2>${heading}</h2>
+        <h2 id="${headingId}">${heading}</h2>
       </div>
       ${note ? `<p class="panel-note" id="${note}"></p>` : ''}
     </div>
@@ -33,7 +36,7 @@ function bodyMarkup() {
       <p class="lede">
         <code>~/.claude/projects</code> 의 세션 기록을 직접 읽어 토큰과 환산 비용을 집계합니다.
         집계는 전부 로컬에서 하고, 계정 한도만 Anthropic 에 직접 조회합니다
-        (<code>--no-live-limits</code> 로 끌 수 있습니다).
+        (<code>--no-live-limits</code> 로 끄면 나가는 요청이 아예 없습니다).
       </p>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
@@ -61,6 +64,7 @@ function bodyMarkup() {
     </div>
   </header>
 
+  <main id="main">
   <div class="filters">
     <span class="filter-label">집계 기간</span>
     <span class="filters" id="filters"></span>
@@ -176,6 +180,8 @@ function bodyMarkup() {
     body: '<div class="panel"><div id="sessions"></div></div>',
   })}
 
+  </main>
+
   <footer class="colophon">
     <strong>읽는 법</strong>
     <ul id="colophon-stats"></ul>
@@ -198,11 +204,10 @@ function bodyMarkup() {
 export async function renderPage({ reports, config, mode = 'standalone' }) {
   const script = await buildClientScript()
 
+  const fontCss = await buildFontFaceCss()
+
   const head = `<title>${PAGE_TITLE}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="${FONT_HREF}">
-<style>${STYLES}</style>`
+<style>${fontCss}\n${STYLES}</style>`
 
   const tail = `<script>
 window.__REPORTS__ = ${embedJson(reports)};

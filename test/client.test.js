@@ -34,9 +34,10 @@ const edit = (over = {}) => ({
 
 /** innerHTML 을 기록하는 최소 엘리먼트 */
 function fakeElement(id) {
-  return {
+  const node = {
     id,
-    innerHTML: '',
+    _innerHTML: '',
+    writes: 0,
     textContent: '',
     dataset: {},
     style: {},
@@ -65,6 +66,15 @@ function fakeElement(id) {
     appendChild() {},
     getBoundingClientRect: () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 100, height: 20 }),
   }
+
+  // innerHTML 재할당 횟수를 센다 — 다시 그리면 포커스가 날아간다
+  Object.defineProperty(node, 'innerHTML', {
+    get: () => node._innerHTML,
+    set: (value) => { node._innerHTML = value; node.writes += 1 },
+    enumerable: true,
+  })
+
+  return node
 }
 
 function makeHarness({ reports, config }) {
@@ -114,7 +124,11 @@ function makeHarness({ reports, config }) {
   const fetch = async (url) => {
     calls.push(url)
     if (failure) return { ok: false, status: 400, json: async () => ({ error: failure }) }
-    return { ok: true, json: async () => ({ reports: { ...reports, custom: reports['30'] }, config }) }
+
+    // 실제 서버와 같게, from/to 를 물었을 때만 custom 리포트를 얹는다
+    const withCustom = /[?&]from=/.test(String(url))
+    const payload = withCustom ? { ...reports, custom: reports['30'] } : reports
+    return { ok: true, json: async () => ({ reports: payload, config }) }
   }
 
   return {
@@ -122,6 +136,14 @@ function makeHarness({ reports, config }) {
     nodes, listeners, calls, intervals, cleared, store,
     failWith(message) { failure = message },
   }
+}
+
+/**
+ * visibilitychange 핸들러는 프로미스를 반환하지 않는다. 그래서 이벤트를 쏘고
+ * 바로 단정하면 refresh 가 끝나기 전이라 무엇이든 통과해 버린다.
+ */
+async function settle(times = 4) {
+  for (let i = 0; i < times; i += 1) await new Promise((resolve) => setImmediate(resolve))
 }
 
 async function boot({ withEdits = true, live = true, config: extraConfig = {}, stored = null, withRecords = true } = {}) {
@@ -316,6 +338,7 @@ test('the polling refresh keeps requesting the chosen custom window', async () =
 
   // Act — visibilitychange 는 폴링과 같은 refresh 경로를 탄다
   await harness.listeners.get('visibilitychange')?.()
+  await settle()
 
   // Assert
   assert.match(harness.calls.at(-1), /from=2026-08-01/)
@@ -385,6 +408,7 @@ test('a paused dashboard does not refresh when the tab regains focus', async () 
 
   // Act
   await harness.listeners.get('visibilitychange')?.()
+  await settle()
 
   // Assert
   assert.equal(harness.calls.length, before)
@@ -703,4 +727,48 @@ test('the dashboard explains how to fill the cache when there is no reading', as
   // Assert
   assert.match(nodes.get('limits').innerHTML, /읽지 못했습니다/)
   assert.equal(nodes.get('limits-note').textContent, '')
+})
+
+/* ---------- 갱신이 기간 칩을 다시 만들지 않는다 ---------- */
+
+test('a refresh does not rebuild the period chips', async () => {
+  // Arrange — 다시 만들면 칩에 있던 키보드 포커스가 body 로 떨어진다
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+  const chips = harness.nodes.get('filters')
+  const before = chips.writes
+
+  // Act — 30초 폴링과 같은 경로
+  await harness.listeners.get('visibilitychange')?.()
+  await settle()
+
+  // Assert
+  assert.equal(chips.writes, before, '칩 컨테이너를 다시 쓰지 않아야 한다')
+})
+
+test('a refresh still keeps the pressed state correct', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+
+  // Act
+  await harness.listeners.get('visibilitychange')?.()
+  await settle()
+
+  // Assert
+  assert.match(harness.nodes.get('filters').innerHTML, /aria-pressed="true"/)
+})
+
+test('the chips are rebuilt when the available ranges change', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+  const chips = harness.nodes.get('filters')
+  const before = chips.writes
+
+  // Act — 사용자 지정 구간을 적용하면 custom 칩이 새로 생겨야 한다
+  harness.nodes.get('date-from').value = '2026-08-01'
+  harness.nodes.get('date-to').value = '2026-08-10'
+  await harness.nodes.get('date-apply').click()
+
+  // Assert
+  assert.ok(chips.writes > before, '기간 목록이 바뀌면 다시 만든다')
+  assert.match(chips.innerHTML, /직접 선택/)
 })
