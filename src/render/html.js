@@ -2,7 +2,7 @@ import { STYLES } from './styles.js'
 import { FONT_HREF } from './theme.js'
 import { buildClientScript } from './bundle.js'
 
-const PAGE_TITLE = '사용량 콘솔'
+const PAGE_TITLE = 'Stoker'
 
 /** JSON 을 </script> 로 끊기지 않게 안전하게 심는다 */
 function embedJson(value) {

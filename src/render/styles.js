@@ -272,7 +272,9 @@ tbody tr:last-child td { border-bottom: none; }
 .refresh-control:focus-within { border-color: var(--accent); }
 .refresh-prefix, .refresh-suffix { color: var(--ink-faint); }
 .refresh-input {
-  width: 4ch; padding: 0; border: 0; background: none;
+  /* 최대값 3600(4자리)이 잘리지 않을 폭. ch 단위는 number 입력의 내부 여백을
+     빼먹어 4ch 가 28.8px 로 계산돼 두 자리에서도 잘렸다. */
+  width: 4.4em; padding: 0; border: 0; background: none;
   font-family: var(--mono); font-size: 12px; color: var(--ink);
   text-align: right; appearance: textfield;
 }

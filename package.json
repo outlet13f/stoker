@@ -1,11 +1,11 @@
 {
-  "name": "claude-usage-dashboard",
+  "name": "stoker",
   "version": "1.0.0",
-  "description": "Claude Code 로컬 트랜스크립트 기반 사용량 모니터링 대시보드",
+  "description": "Claude Code 로컬 트랜스크립트 기반 사용량·비용 모니터 (Stoker)",
   "type": "module",
   "main": "electron/main.js",
   "bin": {
-    "claude-usage": "./src/cli.js"
+    "stoker": "./src/cli.js"
   },
   "scripts": {
     "start": "node src/cli.js --serve",
@@ -29,8 +29,8 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "dev.duksang.claude-usage-dashboard",
-    "productName": "Claude Usage Console",
+    "appId": "dev.duksang.stoker",
+    "productName": "Stoker",
     "files": [
       "electron/**/*",
       "src/**/*",

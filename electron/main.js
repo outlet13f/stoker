@@ -26,7 +26,7 @@ function createWindow(url) {
   const window = new BrowserWindow({
     ...WINDOW,
     backgroundColor: BACKGROUND,
-    title: '사용량 콘솔',
+    title: 'Stoker',
     show: false,
     webPreferences: {
       // 대시보드는 서버가 만든 정적 페이지만 그린다. Node 를 열어 줄 이유가 없다.

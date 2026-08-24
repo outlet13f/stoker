@@ -139,7 +139,7 @@ async function boot({ withEdits = true, live = true, config: extraConfig = {}, s
     ...extraConfig,
   }
   const harness = makeHarness({ reports, config })
-  if (stored !== null) harness.store.set('claude-usage-dashboard.refreshSeconds', String(stored))
+  if (stored !== null) harness.store.set('stoker.refreshSeconds', String(stored))
   const script = await buildClientScript()
 
   const run = new Function(
@@ -350,7 +350,7 @@ test('the user can type an interval that is not one of the presets', async () =>
   // Assert
   assert.ok(harness.cleared.includes(first), '이전 타이머를 해제해야 한다')
   assert.equal(harness.intervals.at(-1).ms, 12_000)
-  assert.equal(harness.store.get('claude-usage-dashboard.refreshSeconds'), '12')
+  assert.equal(harness.store.get('stoker.refreshSeconds'), '12')
 })
 
 test('the user can type the maximum interval', async () => {

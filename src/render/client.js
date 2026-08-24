@@ -860,7 +860,7 @@ async function refresh() {
 }
 
 /* ---------- 자동 갱신 주기 ---------- */
-const REFRESH_PREF_KEY = 'claude-usage-dashboard.refreshSeconds'
+const REFRESH_PREF_KEY = 'stoker.refreshSeconds'
 const DEFAULT_REFRESH_PRESETS = [5, 10, 30, 60, 300]
 const DEFAULT_REFRESH_BOUNDS = { min: 5, max: 3600 }
 const PAUSED = 0

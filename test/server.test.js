@@ -47,7 +47,7 @@ test('the dashboard route returns a full HTML document', async () => {
     assert.equal(response.status, 200)
     assert.match(response.headers.get('content-type'), /text\/html/)
     assert.match(body, /<!doctype html>/)
-    assert.match(body, /사용량 콘솔/)
+    assert.match(body, /Stoker/)
   })
 })
 
