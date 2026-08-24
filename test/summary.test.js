@@ -107,3 +107,57 @@ test('renderSummary tolerates a report built without code metrics', () => {
   // Act & Assert — 예전 리포트 객체로도 죽지 않아야 한다
   assert.doesNotThrow(() => renderSummary(legacy))
 })
+
+/* ---------- 사용 한도 ---------- */
+
+const limits = (over = {}) => ({
+  fetchedAt: NOW - 60_000,
+  ageMs: 60_000,
+  isStale: false,
+  entries: [
+    { kind: 'session', label: '현재 세션', percent: 53, severity: 'normal', resetsAt: NOW + 2 * 3600_000, isActive: true },
+    { kind: 'weekly_all', label: '주간 · 모든 모델', percent: 18, severity: 'normal', resetsAt: NOW + 86_400_000, isActive: false },
+  ],
+  ...over,
+})
+
+test('renderSummary shows the real limit percentages when available', () => {
+  // Arrange
+  const report = buildReport([record()], { now: NOW, timeZone: 'UTC', rangeDays: 30 })
+
+  // Act
+  const output = renderSummary(report, limits())
+
+  // Assert
+  assert.match(output, /사용 한도/)
+  assert.match(output, /현재 세션 53%/)
+  assert.match(output, /주간 · 모든 모델 18%/)
+})
+
+test('renderSummary warns when the cached limit reading is old', () => {
+  // Arrange
+  const report = buildReport([record()], { now: NOW, timeZone: 'UTC', rangeDays: 30 })
+
+  // Act — 낡은 값을 그냥 보여주면 여유 있다고 오해한다
+  const output = renderSummary(report, limits({ isStale: true, ageMs: 189 * 60_000 }))
+
+  // Assert
+  assert.match(output, /3시간 9분 전/)
+})
+
+test('renderSummary omits the limit line when nothing was cached', () => {
+  // Arrange
+  const report = buildReport([record()], { now: NOW, timeZone: 'UTC', rangeDays: 30 })
+
+  // Assert
+  assert.doesNotMatch(renderSummary(report, null), /사용 한도/)
+  assert.doesNotMatch(renderSummary(report), /사용 한도/)
+})
+
+test('renderSummary omits the limit line when the reading has no entries', () => {
+  // Arrange
+  const report = buildReport([record()], { now: NOW, timeZone: 'UTC', rangeDays: 30 })
+
+  // Assert
+  assert.doesNotMatch(renderSummary(report, limits({ entries: [] })), /사용 한도/)
+})

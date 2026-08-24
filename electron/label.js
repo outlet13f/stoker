@@ -45,11 +45,22 @@ function signed(value) {
   return `${value >= 0 ? '+' : ''}${value.toLocaleString('en-US')}`
 }
 
-/** 메뉴에 비활성 항목으로 얹을 수치들 */
-export function trayReadouts(report) {
+/**
+ * 메뉴에 비활성 항목으로 얹을 수치들.
+ * 실제 계정 한도(있으면)를 맨 위에 둔다 — 환산 추정치보다 이게 사실이다.
+ */
+export function trayReadouts(report, limits = null) {
   if (!report) return ['불러오는 중…']
 
   const lines = []
+
+  for (const entry of limits?.entries ?? []) {
+    lines.push(`${entry.label.padEnd(12)}${String(entry.percent).padStart(3)}%`)
+  }
+  if (limits?.entries?.length) {
+    if (limits.isStale) lines.push(`(${formatDuration(limits.ageMs)} 전 기준)`)
+    lines.push('─────────────')
+  }
   const { activeBlock, activeBurn, range, code } = report
 
   if (activeBlock && activeBurn) {

@@ -76,6 +76,13 @@ function bodyMarkup() {
   </div>
 
   ${band({
+    question: '한도까지 얼마 남았나',
+    heading: '사용 한도',
+    note: 'limits-note',
+    body: '<div class="panel" id="limits"></div>',
+  })}
+
+  ${band({
     question: '지금 안전한가',
     heading: '진행 중인 5시간 블록',
     body: '<div class="gauge" id="gauge"></div>',

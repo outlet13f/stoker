@@ -9,6 +9,7 @@ import {
 import { createCollector } from './collector.js'
 import { buildReportSet } from './report.js'
 import { parseDateRange } from './daterange.js'
+import { readUsageLimits } from './limits.js'
 import { renderPage } from './render/html.js'
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
@@ -20,6 +21,8 @@ function createSnapshotSource({ timeZone, root, refreshSeconds }) {
 
   return async function snapshot(customWindow = null) {
     const { records, edits, stats } = await collector.collect()
+    // 계정 한도는 구간과 무관하므로 리포트마다가 아니라 한 번만 읽는다
+    const limits = await readUsageLimits()
 
     return {
       reports: buildReportSet(records, { now: Date.now(), timeZone, edits, customWindow }),
@@ -29,6 +32,7 @@ function createSnapshotSource({ timeZone, root, refreshSeconds }) {
         refreshChoices: REFRESH_CHOICES,
         // 클라이언트가 CLI 와 같은 기준으로 검증하도록 범위를 함께 내려보낸다
         refreshBounds: { min: MIN_REFRESH_SECONDS, max: MAX_REFRESH_SECONDS },
+        limits,
         timeZone,
         fileCount: stats.fileCount,
         collectMs: stats.durationMs,

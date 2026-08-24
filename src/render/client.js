@@ -109,6 +109,47 @@ function renderMasthead(report) {
     : '기록 없음'
 }
 
+/* ---------- 밴드 0: 사용 한도 ---------- */
+const SEVERITY_VARS = { normal: '--ok', warning: '--warn', critical: '--crit' }
+
+/** 한도 퍼센트를 막대로 그린다. 이 값은 캐시이므로 신선도를 함께 알린다. */
+function renderLimits(report) {
+  const node = $('limits')
+  if (!node) return
+
+  const limits = state.config.limits
+  const entries = limits?.entries ?? []
+
+  if (entries.length === 0) {
+    node.innerHTML =
+      '<p class="empty">계정 한도를 읽지 못했습니다. Claude Code 를 한 번 실행하면 캐시가 채워집니다.</p>'
+    $('limits-note').textContent = ''
+    return
+  }
+
+  node.innerHTML = entries.map((entry) => {
+    const variable = SEVERITY_VARS[entry.severity] || '--accent'
+    const reset = entry.resetsAt
+      ? `${dateAt(entry.resetsAt)} ${clockAt(entry.resetsAt)} 재설정`
+      : '재설정 시각 없음'
+
+    return `<div class="limit">
+      <div class="limit-head">
+        <span class="limit-label">${esc(entry.label)}${entry.isActive ? '<span class="tag">진행 중</span>' : ''}</span>
+        <span class="limit-value">${entry.percent}%</span>
+      </div>
+      <div class="limit-track">
+        <div class="limit-fill" style="width:${entry.percent}%;background:var(${variable})"></div>
+      </div>
+      <span class="limit-reset">${esc(reset)}</span>
+    </div>`
+  }).join('')
+
+  $('limits-note').textContent = limits.isStale
+    ? `${formatDuration(limits.ageMs)} 전에 받아온 값입니다 — 지금은 더 올라가 있을 수 있습니다`
+    : `${formatDuration(limits.ageMs)} 전 기준`
+}
+
 /* ---------- 밴드 1: 진행 중 블록 계기 ---------- */
 function renderGauge(report) {
   const { activeBlock, activeBurn, burnStatus } = report
@@ -811,6 +852,7 @@ function renderAll() {
 
   renderFilters()
   renderMasthead(report)
+  renderLimits(report)
   renderGauge(report)
   renderTiles(report)
   renderDaily(report)

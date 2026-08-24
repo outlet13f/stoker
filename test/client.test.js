@@ -612,3 +612,73 @@ test('the refresh button ignores a second click while one is in flight', async (
   // Assert
   assert.equal(harness.calls.length, before + 1)
 })
+
+/* ---------- 사용 한도 ---------- */
+
+const limitsConfig = (over = {}) => ({
+  fetchedAt: NOW - 60_000,
+  ageMs: 60_000,
+  isStale: false,
+  entries: [
+    { kind: 'session', label: '현재 세션', percent: 53, severity: 'normal', resetsAt: NOW + 7_200_000, isActive: true },
+    { kind: 'weekly_all', label: '주간 · 모든 모델', percent: 18, severity: 'warning', resetsAt: NOW + 86_400_000, isActive: false },
+  ],
+  ...over,
+})
+
+test('the dashboard draws a bar for each real limit', async () => {
+  // Act
+  const { nodes } = await boot({ config: { limits: limitsConfig() } })
+
+  // Assert
+  const html = nodes.get('limits').innerHTML
+  assert.match(html, /현재 세션/)
+  assert.match(html, /53%/)
+  assert.match(html, /width:53%/)
+  assert.match(html, /주간 · 모든 모델/)
+  assert.match(html, /width:18%/)
+})
+
+test('the limit bar colour follows the severity the server reported', async () => {
+  // Act
+  const { nodes } = await boot({ config: { limits: limitsConfig() } })
+
+  // Assert
+  const html = nodes.get('limits').innerHTML
+  assert.match(html, /var\(--ok\)/)
+  assert.match(html, /var\(--warn\)/)
+})
+
+test('the running limit is marked so it is obvious which one moves', async () => {
+  // Act
+  const { nodes } = await boot({ config: { limits: limitsConfig() } })
+
+  // Assert
+  assert.match(nodes.get('limits').innerHTML, /진행 중/)
+})
+
+test('a fresh reading just states its age', async () => {
+  // Act
+  const { nodes } = await boot({ config: { limits: limitsConfig() } })
+
+  // Assert
+  assert.match(nodes.get('limits-note').textContent, /1분 전 기준/)
+})
+
+test('a stale reading warns that the real figure is probably higher', async () => {
+  // Act
+  const { nodes } = await boot({ config: { limits: limitsConfig({ isStale: true, ageMs: 189 * 60_000 }) } })
+
+  // Assert
+  assert.match(nodes.get('limits-note').textContent, /더 올라가 있을 수 있습니다/)
+  assert.match(nodes.get('limits-note').textContent, /3시간 9분/)
+})
+
+test('the dashboard explains how to fill the cache when there is no reading', async () => {
+  // Act
+  const { nodes } = await boot({ config: { limits: null } })
+
+  // Assert
+  assert.match(nodes.get('limits').innerHTML, /읽지 못했습니다/)
+  assert.equal(nodes.get('limits-note').textContent, '')
+})

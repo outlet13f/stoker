@@ -16,7 +16,7 @@ function table(headers, rows) {
 }
 
 /** 터미널에 찍을 요약. 대시보드를 열지 않고도 핵심을 볼 수 있게 한다. */
-export function renderSummary(report) {
+export function renderSummary(report, limits = null) {
   const lines = [
     `기간 ${report.rangeDays}일  ·  환산 비용 ${formatCost(report.range.cost)}  ·  ` +
       `토큰 ${formatTokens(report.range.totalTokens)}  ·  요청 ${report.range.requests.toLocaleString('en-US')}건`,
@@ -24,6 +24,13 @@ export function renderSummary(report) {
       `  ·  캐시 절감 ${formatCost(report.allTime.cacheSavings)}`,
     '',
   ]
+
+  if (limits?.entries?.length) {
+    const shown = limits.entries.map((entry) => `${entry.label} ${entry.percent}%`).join('  ·  ')
+    // 캐시가 낡았으면 반드시 함께 알린다. 낡은 값은 여유 있다고 오해하게 만든다.
+    const age = limits.isStale ? `  (${formatDuration(limits.ageMs)} 전 기준)` : ''
+    lines.push(`사용 한도  ${shown}${age}`, '')
+  }
 
   const code = report.code?.range
   if (code && code.edits > 0) {

@@ -252,6 +252,16 @@ tbody tr:last-child td { border-bottom: none; }
 .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .chip:focus-visible, .toggle:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* 사용 한도 */
+.limit { display: flex; flex-direction: column; gap: 6px; }
+.limit + .limit { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.limit-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.limit-label { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+.limit-value { font-family: var(--mono); font-size: 18px; font-weight: 600; }
+.limit-track { height: 8px; background: var(--surface-sunk); border-radius: 999px; overflow: hidden; }
+.limit-fill { height: 100%; border-radius: 999px; }
+.limit-reset { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); }
+
 /* 단가표 */
 .rate-card { margin-top: 22px; }
 .rate-model {

@@ -135,3 +135,42 @@ test('trayReadouts omits the code row when nothing was edited', () => {
   // Assert
   assert.doesNotMatch(joined, /코드 변경/)
 })
+
+/* ---------- 메뉴에 실제 한도 ---------- */
+
+const limits = (over = {}) => ({
+  fetchedAt: 0, ageMs: 60_000, isStale: false,
+  entries: [
+    { label: '현재 세션', percent: 53, severity: 'normal', resetsAt: null, isActive: true },
+    { label: '주간 · 모든 모델', percent: 18, severity: 'normal', resetsAt: null, isActive: false },
+  ],
+  ...over,
+})
+
+test('trayReadouts puts the real limits above the estimated spend', () => {
+  // Act
+  const lines = trayReadouts(activeReport(), limits())
+
+  // Assert — 환산 추정치보다 실제 한도가 먼저 눈에 와야 한다
+  assert.match(lines[0], /현재 세션/)
+  assert.match(lines[0], /53%/)
+  assert.match(lines[1], /주간 · 모든 모델 +18%/)
+  assert.ok(lines.findIndex((l) => /소진 속도/.test(l)) > 1)
+})
+
+test('trayReadouts marks a stale limit reading in the menu too', () => {
+  // Act
+  const joined = trayReadouts(activeReport(), limits({ isStale: true, ageMs: 189 * 60_000 })).join('\n')
+
+  // Assert
+  assert.match(joined, /3시간 9분 전/)
+})
+
+test('trayReadouts works without any limit reading', () => {
+  // Act
+  const joined = trayReadouts(activeReport(), null).join('\n')
+
+  // Assert
+  assert.doesNotMatch(joined, /현재 세션/)
+  assert.match(joined, /소진 속도/)
+})

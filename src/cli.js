@@ -4,6 +4,7 @@ import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { parseArgs } from './args.js'
 import { createCollector } from './collector.js'
+import { readUsageLimits } from './limits.js'
 import { buildReportSet } from './report.js'
 import { renderPage } from './render/html.js'
 import { renderSummary } from './summary.js'
@@ -55,10 +56,11 @@ async function runServer(options) {
 
 async function runBuild(options) {
   const { records, edits, stats } = await createCollector().collect()
+  const limits = await readUsageLimits()
   const reports = buildReportSet(records, { now: Date.now(), timeZone: options.timeZone, edits })
 
   if (options.json) {
-    console.log(JSON.stringify({ reports, stats }, null, 2))
+    console.log(JSON.stringify({ reports, limits, stats }, null, 2))
     return
   }
 
@@ -72,6 +74,7 @@ async function runBuild(options) {
       refreshSeconds: 0,
       refreshChoices: REFRESH_CHOICES,
       refreshBounds: { min: MIN_REFRESH_SECONDS, max: MAX_REFRESH_SECONDS },
+      limits,
     },
   })
 
@@ -79,7 +82,7 @@ async function runBuild(options) {
   await fs.writeFile(outPath, html, 'utf8')
 
   const chosen = reports[String(options.days)] ?? reports['30']
-  console.log(renderSummary(chosen))
+  console.log(renderSummary(chosen, limits))
   console.log('')
   console.log(
     `트랜스크립트 ${stats.fileCount}개 · 응답 ${stats.recordCount.toLocaleString('en-US')}건 · ` +

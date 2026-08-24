@@ -4,6 +4,9 @@ import path from 'node:path'
 /** Claude Code 가 세션 트랜스크립트(JSONL)를 저장하는 위치 */
 export const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects')
 
+/** Claude Code 설정 파일. 계정의 실제 사용 한도 캐시가 여기 들어 있다. */
+export const CLAUDE_CONFIG_FILE = path.join(os.homedir(), '.claude.json')
+
 /** 사용 한도가 리셋되는 롤링 블록 길이(시간) */
 export const BLOCK_DURATION_HOURS = 5
 export const WEEKLY_WINDOW_DAYS = 7

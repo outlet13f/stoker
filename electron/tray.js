@@ -26,6 +26,7 @@ export function createTray({ url, refreshSeconds, onToggleWindow, onQuit }) {
 
   const tray = new Tray(image)
   let report = null
+  let limits = null
   let timer = null
 
   function render() {
@@ -34,7 +35,7 @@ export function createTray({ url, refreshSeconds, onToggleWindow, onQuit }) {
 
     tray.setContextMenu(
       Menu.buildFromTemplate([
-        ...trayReadouts(report).map((label) => ({ label, enabled: false })),
+        ...trayReadouts(report, limits).map((label) => ({ label, enabled: false })),
         { type: 'separator' },
         { label: '지금 갱신', click: () => void poll() },
         { label: '대시보드 열기', click: () => onToggleWindow(true) },
@@ -53,6 +54,7 @@ export function createTray({ url, refreshSeconds, onToggleWindow, onQuit }) {
       const payload = await response.json()
       // 메뉴바에는 전체 기간이 아니라 30일 기준을 쓴다(대시보드 기본값과 같다)
       report = payload.reports['30'] ?? Object.values(payload.reports)[0] ?? null
+      limits = payload.config?.limits ?? null
     } catch {
       // 한 번 실패해도 이전 값을 그대로 두고 다음 주기에 다시 시도한다
     }
