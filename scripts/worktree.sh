@@ -24,10 +24,12 @@ usage() {
   new <브랜치> [기준]   워크트리 생성. 브랜치가 없으면 기준에서 새로 만든다
                         (기준 기본값: origin/HEAD → main → master → HEAD)
   list                  워크트리 목록
-  rm <브랜치> [--force] 워크트리 제거 (커밋 안 된 변경이 있으면 git 이 막는다)
+  rm <브랜치> [force]   워크트리 제거 (커밋 안 된 변경이 있으면 git 이 막는다)
   clean                 사라진 워크트리 메타데이터 정리 + 병합된 워크트리 안내
 
 npm 으로도 호출된다: npm run wt:new feat/export-csv
+npm 은 '--force' 를 자기 플래그로 먹으므로 맨 토큰 'force' 를 쓴다:
+  npm run wt:rm feat/export-csv force
 USAGE
 }
 
@@ -116,7 +118,9 @@ cmd_rm() {
   [[ -d "$dir" ]] || die "워크트리가 없습니다: $dir"
 
   if [[ -n "$force" ]]; then
-    [[ "$force" == "--force" ]] || die "알 수 없는 옵션: $force"
+    # npm run 은 '--force' 를 npm 자신의 플래그로 소비하므로 맨 토큰 'force' 도 받는다.
+    [[ "$force" == "--force" || "$force" == "force" ]] \
+      || die "알 수 없는 옵션: $force (쓸 수 있는 값: force)"
     git worktree remove --force "$dir"
   else
     git worktree remove "$dir"

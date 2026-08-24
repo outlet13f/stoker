@@ -84,6 +84,8 @@ src/
   server.js      로컬 HTTP 서버 (/ 와 /api/report)
   cli.js         진입점
   render/        디자인 토큰, 스타일, 클라이언트 렌더러, HTML 조립
+scripts/
+  worktree.sh    git 워크트리 생성·조회·제거·정리
 ```
 
 ## 개발
@@ -92,6 +94,26 @@ src/
 npm test          # node:test, 110개
 npm run coverage  # 라인 99.8% / 브랜치 96.5%
 ```
+
+### 워크트리
+
+브랜치별 작업을 리포지토리 밖 형제 디렉터리에서 병행합니다. 안에 두면
+`git status` 와 `test/*.js` 글롭이 워크트리를 함께 훑어 결과가 오염됩니다.
+
+```bash
+npm run wt:new feat/export-csv   # ../claude-usage-dashboard-worktrees/feat-export-csv
+npm run wt:list
+npm run wt:rm feat/export-csv    # 커밋 안 된 변경이 있으면 거부된다
+npm run wt:rm feat/export-csv force
+npm run wt:clean                 # 끊긴 메타데이터 정리 + 병합된 워크트리 안내
+```
+
+`wt:clean` 은 아무것도 지우지 않고 정리 대상만 알려줍니다. 삭제는 `wt:rm` 으로
+직접 합니다. npm 이 `--force` 를 자기 플래그로 먹으므로 맨 토큰 `force` 를 씁니다.
+
+`.claude/settings.json` 의 `worktree.baseRef` 는 `head` 입니다. 기본값 `fresh` 는
+`origin/<기본브랜치>` 를 기준으로 삼는데 이 리포지토리에는 리모트가 없습니다.
+리모트를 붙이면 `fresh` 로 바꾸는 편이 낫습니다.
 
 차트 색은 명도 대역, 채도 하한, 색각 이상 분리도(ΔE), 배경 대비를 라이트·다크 양쪽에서
 검증한 값입니다. 팔레트를 바꾸면 `src/render/theme.js` 를 수정하고 다시 검증하세요.
