@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell, Menu } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createTray } from './tray.js'
 import { startServer } from '../src/server.js'
 import { DEFAULT_REFRESH_SECONDS } from '../src/constants.js'
 
@@ -11,6 +12,8 @@ import { DEFAULT_REFRESH_SECONDS } from '../src/constants.js'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 const WINDOW = { width: 1440, height: 940, minWidth: 720, minHeight: 560 }
+
+let isQuitting = false
 const BACKGROUND = '#F5F3F0'
 
 /** --refresh 10 처럼 CLI 로 준 값을 그대로 받는다 */
@@ -39,6 +42,13 @@ function createWindow(url) {
 
   window.once('ready-to-show', () => window.show())
   window.loadURL(url)
+
+  // 메뉴바 앱이므로 창을 닫아도 종료하지 않고 숨긴다. 종료는 트레이 메뉴나 Cmd+Q.
+  window.on('close', (event) => {
+    if (isQuitting) return
+    event.preventDefault()
+    window.hide()
+  })
 
   // 외부 링크(단가 문서 등)는 기본 브라우저로 넘긴다
   window.webContents.setWindowOpenHandler(({ url: target }) => {
@@ -86,24 +96,48 @@ function buildMenu(url) {
 async function main() {
   await app.whenReady()
 
+  const refreshSeconds = parseRefreshSeconds(process.argv)
   const { url } = await startServer({
     port: 0,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    refreshSeconds: parseRefreshSeconds(process.argv),
+    refreshSeconds,
   })
 
   Menu.setApplicationMenu(buildMenu(url))
-  createWindow(url)
+  let window = createWindow(url)
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow(url)
+  /** 트레이 아이콘을 눌렀을 때: 숨어 있으면 띄우고, 보이면 숨긴다 */
+  function toggleWindow(forceShow = false) {
+    if (window.isDestroyed()) window = createWindow(url)
+
+    if (!forceShow && window.isVisible() && window.isFocused()) {
+      window.hide()
+      return
+    }
+
+    window.show()
+    window.focus()
+  }
+
+  const tray = createTray({
+    url,
+    refreshSeconds,
+    onToggleWindow: toggleWindow,
+    onQuit: () => {
+      isQuitting = true
+      app.quit()
+    },
   })
+
+  app.on('before-quit', () => {
+    isQuitting = true
+    tray.destroy()
+  })
+
+  app.on('activate', () => toggleWindow(true))
 }
 
-app.on('window-all-closed', () => {
-  // macOS 는 창을 닫아도 앱이 살아 있는 것이 관례지만, 이 앱은 창이 전부다.
-  app.quit()
-})
+// 창을 닫아도 메뉴바에 남아야 하므로 여기서 종료하지 않는다.
 
 main().catch((error) => {
   console.error(`대시보드를 띄우지 못했습니다: ${error.message}`)

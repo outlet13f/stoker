@@ -5,6 +5,10 @@ const MIN_VISIBLE_COST = 0.01
 const MS_PER_MINUTE = 60_000
 const MINUTES_PER_HOUR = 60
 
+/** 진행 중 블록 상태의 사람이 읽는 표기. 대시보드·터미널·메뉴바가 같은 문구를 쓴다. */
+export const LEVEL_LABELS = { ok: '안정', warn: '주의', crit: '높음', idle: '유휴' }
+export const LEVEL_GLYPHS = { ok: '●', warn: '▲', crit: '■', idle: '○' }
+
 export function formatCost(value) {
   const amount = Number(value) || 0
   if (amount > 0 && amount < MIN_VISIBLE_COST) return '<$0.01'

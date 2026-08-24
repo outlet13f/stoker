@@ -19,6 +19,35 @@ node src/cli.js --json             # 집계 결과를 JSON 으로
 
 ## 데스크톱 앱
 
+### 메뉴바
+
+앱을 실행하면 메뉴바에 상주합니다. 창을 닫아도 종료되지 않고 메뉴바에 남습니다
+(종료는 트레이 메뉴의 `Stoker 종료` 또는 Cmd+Q).
+
+메뉴바 제목은 **평상시엔 금액만**, 주의·높음일 때만 상태를 글자로 앞에 붙입니다.
+
+```
+불꽃        진행 중인 블록 없음
+불꽃 $261   안정
+불꽃 주의 $261
+불꽃 높음 $261
+```
+
+`●▲■` 같은 글리프는 16px 에서 앱 아이콘과 뭉개져 구분이 되지 않아 글자를 씁니다.
+센트는 버려서 폭이 흔들리지 않게 했습니다.
+
+- **아이콘 클릭** — 창 열기/숨기기
+- **우클릭** — 블록 사용·소진 속도·예상 총액·남은 시간·기간 비용·코드 변경,
+  그리고 `지금 갱신` / `대시보드 열기` / `브라우저에서 열기` / `종료`
+
+메뉴바는 창과 같은 `/api/report` 를 읽으므로 두 화면의 수치가 어긋나지 않습니다.
+갱신 주기는 `--refresh` 값을 따르되 최소 15초, 갱신을 끈 경우 60초입니다.
+
+트레이 아이콘은 `npm run icons` 로 다시 만듭니다. `qlmanage` 로 SVG 를 변환하면
+알파가 흰 배경으로 평탄화돼 메뉴바에 통짜 사각형이 찍히므로, zlib 만 써서
+알파까지 직접 래스터화합니다.
+
+
 ```bash
 npm install          # electron, electron-builder (devDependency)
 npm run app          # 앱으로 실행
@@ -159,16 +188,20 @@ scripts/
   worktree.sh    git 워크트리 생성·조회·제거·정리
 electron/
   main.js        데스크톱 껍데기(서버를 앱 안에서 띄우고 창에 로드)
+  tray.js        메뉴바 상주(제목·툴팁·메뉴, 주기 폴링)
+  label.js       메뉴바 문구 조립(Electron 을 import 하지 않아 그대로 테스트한다)
   preload.js     의도적으로 빈 preload
 build/
   icon.svg       앱 아이콘 원본(팔레트의 seq 램프를 그대로 쓴 불꽃)
   icon.png       1024px, electron-builder 가 icns/ico 로 변환
+  make-tray-icon.mjs  메뉴바 템플릿 아이콘 래스터라이저(zlib 만 사용)
+  trayTemplate.png    16px / @2x 32px, 검정+알파만
 ```
 
 ## 개발
 
 ```bash
-npm test          # node:test, 225개
+npm test          # node:test, 238개
 npm run coverage  # 라인 99.9% / 브랜치 96.3%
 ```
 

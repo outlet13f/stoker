@@ -4,8 +4,6 @@
 const RANGE_LABELS = { 7: '7일', 30: '30일', 90: '90일', all: '전체', custom: '직접 선택' }
 const SOURCE_LABELS = { main: '메인 세션', subagent: '서브에이전트', workflow: '워크플로' }
 const SOURCE_VARS = { main: '--cat-1', subagent: '--cat-2', workflow: '--cat-3' }
-const LEVEL_LABELS = { ok: '안정', warn: '주의', crit: '높음', idle: '유휴' }
-const LEVEL_GLYPHS = { ok: '●', warn: '▲', crit: '■', idle: '○' }
 
 const TOKEN_BUCKETS = [
   { field: 'cacheReadTokens', costField: 'cacheReadCost', label: '캐시 읽기', varName: '--seq-1', note: 'input 단가의 0.1배' },
