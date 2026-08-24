@@ -252,6 +252,14 @@ tbody tr:last-child td { border-bottom: none; }
 .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .chip:focus-visible, .toggle:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* 단가표 */
+.rate-card { margin-top: 22px; }
+.rate-model {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere;
+}
+.rate-label { display: block; margin-top: 3px; font-size: 10px; color: var(--ink-muted); }
+
 /* 헤더 제어(갱신 주기 · 테마) */
 .masthead-controls { display: inline-flex; align-items: center; gap: 8px; }
 

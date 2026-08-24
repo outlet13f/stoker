@@ -338,3 +338,74 @@ test('buildReport still defaults to a rolling window without from/to', () => {
   assert.equal(report.window.from, NOW - 30 * 24 * HOUR)
   assert.equal(report.range.requests, 1)
 })
+
+/* ---------- 단가표 ---------- */
+
+test('buildReport carries a rate card for the models actually used', () => {
+  // Arrange
+  const records = [
+    record('2026-08-24T09:00:00Z', { model: 'claude-opus-5' }),
+    record('2026-08-24T09:01:00Z', { model: 'claude-sonnet-5', dedupeKey: 'b' }),
+  ]
+
+  // Act
+  const report = buildReport(records, OPTIONS)
+
+  // Assert — 비싼 것부터
+  assert.deepEqual(report.rateCard.map((row) => row.model), ['claude-opus-5', 'claude-sonnet-5'])
+  assert.equal(report.rateCard[0].input, 5)
+  assert.equal(report.rateCard[0].output, 25)
+  assert.equal(report.rateCard[0].cacheRead, 0.5)
+  assert.equal(report.rateCard[1].input, 2)
+})
+
+test('the rate card separates Opus generations priced differently', () => {
+  // Arrange
+  const records = [
+    record('2026-08-24T09:00:00Z', { model: 'claude-opus-4-1' }),
+    record('2026-08-24T09:01:00Z', { model: 'claude-opus-5', dedupeKey: 'b' }),
+  ]
+
+  // Act
+  const report = buildReport(records, OPTIONS)
+
+  // Assert
+  const byModel = new Map(report.rateCard.map((row) => [row.model, row]))
+  assert.equal(byModel.get('claude-opus-4-1').input, 15)
+  assert.equal(byModel.get('claude-opus-5').input, 5)
+})
+
+test('the rate card does not shift with the selected range', () => {
+  // Arrange — 오래된 모델이 구간에서 빠져도 단가표에는 남아야 한다
+  const records = [
+    record('2026-01-01T00:00:00Z', { model: 'claude-haiku-4-5', dedupeKey: 'old' }),
+    record('2026-08-24T09:00:00Z', { model: 'claude-opus-5' }),
+  ]
+
+  // Act
+  const narrow = buildReport(records, { ...OPTIONS, rangeDays: 1 })
+
+  // Assert
+  assert.equal(narrow.rateCard.length, 2)
+  assert.equal(narrow.byModel.length, 1, '구간 순위표는 좁아진다')
+})
+
+test('the rate card flags a model whose price had to be guessed', () => {
+  // Arrange
+  const records = [record('2026-08-24T09:00:00Z', { model: 'claude-brandnew-1' })]
+
+  // Act
+  const report = buildReport(records, OPTIONS)
+
+  // Assert
+  assert.equal(report.rateCard[0].isEstimated, true)
+  assert.equal(report.rateCard[0].input, 2, '현행 Sonnet 단가로 추정')
+})
+
+test('the rate card is empty when nothing was recorded', () => {
+  // Act
+  const report = buildReport([], OPTIONS)
+
+  // Assert
+  assert.deepEqual(report.rateCard, [])
+})

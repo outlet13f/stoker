@@ -170,6 +170,13 @@ function bodyMarkup() {
   <footer class="colophon">
     <strong>읽는 법</strong>
     <ul id="colophon-stats"></ul>
+    <div class="rate-card">
+      <div class="panel-head">
+        <h3>모델 단가</h3>
+        <span class="panel-note">100만 토큰당 USD · 이 기록에 나온 모델</span>
+      </div>
+      <div id="rate-card"></div>
+    </div>
   </footer>
 </div>
 <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>`

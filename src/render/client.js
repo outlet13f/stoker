@@ -663,7 +663,41 @@ function renderColophon(report) {
       "같은 작업을 API로 했다면" 값으로 읽으세요.</li>
     <li>5시간 블록은 첫 활동을 정시에 앵커해 계산하며, 5시간 이상 공백이 생기면 새 블록으로 셉니다.</li>
     ${estimated.length ? `<li>단가가 공개되지 않은 모델(${esc(estimated.join(', '))})은 Sonnet 단가로 추정했습니다.</li>` : ''}`
+
+  renderRateCard(report)
 }
+
+/** 실제로 쓴 모델의 단가표. 캐시 단가는 input 단가의 배수라 함께 펼쳐 보여준다. */
+function renderRateCard(report) {
+  const card = report.rateCard
+  if (!card) return
+
+  if (card.length === 0) {
+    $('rate-card').innerHTML = '<p class="empty">기록된 모델이 없습니다.</p>'
+    return
+  }
+
+  const rows = card.map((row) => `<tr>
+    <td>
+      <span class="rate-model">${esc(row.model)}${row.isEstimated ? '<span class="tag">단가 추정</span>' : ''}</span>
+      <span class="rate-label">${esc(row.label)}</span>
+    </td>
+    <td>${esc(formatCost(row.input))}</td>
+    <td>${esc(formatCost(row.output))}</td>
+    <td>${esc(formatCost(row.cacheWrite5m))}</td>
+    <td>${esc(formatCost(row.cacheWrite1h))}</td>
+    <td>${esc(formatCost(row.cacheRead))}</td>
+  </tr>`).join('')
+
+  $('rate-card').innerHTML = `<div class="scroll-x"><table>
+    <thead><tr>
+      <th>모델</th><th>input</th><th>output</th>
+      <th>캐시 쓰기 5m</th><th>캐시 쓰기 1h</th><th>캐시 읽기</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`
+}
+
 
 /* ---------- 기간 필터 ---------- */
 function renderFilters() {

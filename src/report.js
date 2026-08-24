@@ -21,7 +21,7 @@ import {
   percentile,
 } from './aggregate.js'
 import { sumEdits, buildEditDailySeries, groupEditsBy } from './edits.js'
-import { resolveTier } from './pricing.js'
+import { resolveModelPrice } from './pricing.js'
 import { describeProjectPath } from './project.js'
 
 /**
@@ -38,6 +38,22 @@ export function resolveWindow({ now: _now, from, to, rangeDays } = {}, now = Dat
 
   const days = Number.isFinite(rangeDays) ? rangeDays : DEFAULT_RANGE_DAYS
   return { from: end - days * MS_PER_DAY, to: end, rangeDays: days }
+}
+
+/**
+ * 실제로 쓴 모델의 단가표. 구간 필터와 무관하게 전체 기록을 보므로
+ * 기간을 바꿔도 표가 흔들리지 않는다. 비싼 것부터 위에 온다.
+ */
+function buildRateCard(records) {
+  const prices = new Map()
+
+  for (const record of records) {
+    if (!prices.has(record.model)) prices.set(record.model, resolveModelPrice(record.model))
+  }
+
+  return [...prices.entries()]
+    .map(([model, price]) => ({ model, ...price }))
+    .sort((a, b) => b.input - a.input || b.output - a.output || a.model.localeCompare(b.model))
 }
 
 /** 블록에서 지금까지의 소진 속도로 블록 종료 시점 총량을 추정한다 */
@@ -137,7 +153,10 @@ export function buildReport(records, options = {}) {
     byModel: groupWithMeta(
       inRange,
       (record) => record.model,
-      (record) => ({ tier: resolveTier(record.model).label, isEstimated: resolveTier(record.model).isEstimated }),
+      (record) => {
+        const price = resolveModelPrice(record.model)
+        return { tier: price.label, isEstimated: price.isEstimated }
+      },
     ),
     byProject: groupWithMeta(
       inRange,
@@ -165,6 +184,8 @@ export function buildReport(records, options = {}) {
 
     dayOverDay: compareWindows(records, { now, windowMs: MS_PER_DAY }),
     weekOverWeek: compareWindows(records, { now, windowMs: WEEKLY_WINDOW_DAYS * MS_PER_DAY }),
+
+    rateCard: buildRateCard(records),
 
     firstActivity: extremum(records, (a, b) => (a.timestamp <= b.timestamp ? a : b))?.timestamp ?? null,
     lastActivity: extremum(records, (a, b) => (a.timestamp >= b.timestamp ? a : b))?.timestamp ?? null,

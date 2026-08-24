@@ -124,8 +124,8 @@ function makeHarness({ reports, config }) {
   }
 }
 
-async function boot({ withEdits = true, live = true, config: extraConfig = {}, stored = null } = {}) {
-  const reports = buildReportSet([record()], {
+async function boot({ withEdits = true, live = true, config: extraConfig = {}, stored = null, withRecords = true } = {}) {
+  const reports = buildReportSet(withRecords ? [record()] : [], {
     now: NOW,
     timeZone: 'UTC',
     edits: withEdits ? [edit()] : [],
@@ -495,4 +495,44 @@ test('a static export schedules no polling at all', async () => {
 
   // Assert
   assert.equal(harness.intervals.length, 0)
+})
+
+/* ---------- 단가표 ---------- */
+
+test('the footer renders a rate card for the model that was used', async () => {
+  // Act
+  const { nodes } = await boot()
+
+  // Assert
+  const html = nodes.get('rate-card').innerHTML
+  assert.match(html, /claude-opus-5/)
+  assert.match(html, /Opus 5/)
+  assert.match(html, /캐시 읽기/)
+})
+
+test('the rate card shows the published Opus 5 rates', async () => {
+  // Act
+  const { nodes } = await boot()
+
+  // Assert — input $5 / output $25 / 5m $6.25 / 1h $10 / read $0.50
+  const html = nodes.get('rate-card').innerHTML
+  for (const amount of ['\\$5\\.00', '\\$25\\.00', '\\$6\\.25', '\\$10\\.00', '\\$0\\.50']) {
+    assert.match(html, new RegExp(amount))
+  }
+})
+
+test('the rate card says so plainly when no model was recorded', async () => {
+  // Act
+  const { nodes } = await boot({ withRecords: false, withEdits: false })
+
+  // Assert
+  assert.match(nodes.get('rate-card').innerHTML, /기록된 모델이 없습니다/)
+})
+
+test('the rate card marks a model whose price was guessed', async () => {
+  // Act
+  const { nodes } = await boot()
+
+  // Assert — claude-opus-5 는 공개 단가라 추정 표시가 없어야 한다
+  assert.doesNotMatch(nodes.get('rate-card').innerHTML, /단가 추정/)
 })

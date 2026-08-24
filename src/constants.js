@@ -21,27 +21,35 @@ export const CACHE_READ_MULTIPLIER = 0.1
 export const TOKENS_PER_MILLION = 1_000_000
 
 /**
- * 100만 토큰당 USD 단가. 공개 API 가격 기준이며 구독 요금제 사용자에게는
- * "API 로 환산했을 때의 참고값"이다.
+ * 모델별 100만 토큰당 USD 단가. 출처:
+ * https://platform.claude.com/docs/ko/about-claude/pricing
+ *
+ * 같은 계열 안에서도 버전에 따라 단가가 다르다(Opus 4.1 은 $15, Opus 4.5 부터 $5).
+ * 그래서 계열 키워드만으로는 값을 정할 수 없고 버전까지 봐야 한다.
  */
-export const MODEL_TIERS = {
-  opus: { label: 'Opus', input: 15, output: 75 },
-  sonnet: { label: 'Sonnet', input: 3, output: 15 },
-  haiku: { label: 'Haiku', input: 1, output: 5 },
-  fable: { label: 'Fable', input: 3, output: 15, isEstimated: true },
-  synthetic: { label: 'Synthetic', input: 0, output: 0 },
-}
-
-/** 모델 ID 안에서 이 키워드를 찾아 티어를 결정한다(먼저 매칭되는 순서대로) */
-export const TIER_KEYWORDS = [
-  ['opus', 'opus'],
-  ['sonnet', 'sonnet'],
-  ['haiku', 'haiku'],
-  ['fable', 'fable'],
-  ['synthetic', 'synthetic'],
+export const MODEL_PRICES = [
+  { family: 'fable', version: 5, label: 'Fable 5', input: 10, output: 50 },
+  { family: 'mythos', version: 5, label: 'Mythos 5', input: 10, output: 50 },
+  { family: 'opus', version: 5, label: 'Opus 5', input: 5, output: 25 },
+  { family: 'opus', version: 4.8, label: 'Opus 4.8', input: 5, output: 25 },
+  { family: 'opus', version: 4.7, label: 'Opus 4.7', input: 5, output: 25 },
+  { family: 'opus', version: 4.6, label: 'Opus 4.6', input: 5, output: 25 },
+  { family: 'opus', version: 4.5, label: 'Opus 4.5', input: 5, output: 25 },
+  { family: 'opus', version: 4.1, label: 'Opus 4.1', input: 15, output: 75 },
+  { family: 'opus', version: 4, label: 'Opus 4', input: 15, output: 75 },
+  { family: 'sonnet', version: 5, label: 'Sonnet 5', input: 2, output: 10 },
+  { family: 'sonnet', version: 4.6, label: 'Sonnet 4.6', input: 3, output: 15 },
+  { family: 'sonnet', version: 4.5, label: 'Sonnet 4.5', input: 3, output: 15 },
+  { family: 'sonnet', version: 4, label: 'Sonnet 4', input: 3, output: 15 },
+  { family: 'haiku', version: 4.5, label: 'Haiku 4.5', input: 1, output: 5 },
+  { family: 'haiku', version: 3.5, label: 'Haiku 3.5', input: 0.8, output: 4 },
 ]
 
-export const DEFAULT_TIER = 'sonnet'
+/** Claude Code 내부 합성 메시지. 청구 대상이 아니다. */
+export const SYNTHETIC_PRICE = { family: 'synthetic', version: null, label: 'Synthetic', input: 0, output: 0 }
+
+/** 처음 보는 계열은 현행 Sonnet 단가로 추정한다 */
+export const FALLBACK_FAMILY = 'sonnet'
 
 /** 대시보드 기본값 */
 export const DEFAULT_PORT = 7331
