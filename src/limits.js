@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import { CLAUDE_CONFIG_FILE, LIVE_LIMITS_MIN_INTERVAL_MS } from './constants.js'
-import { loadCredentials } from './credentials.js'
+import { loadCredentials, scrubSecrets } from './credentials.js'
 import { fetchLiveUtilization } from './usage-api.js'
 
 /**
@@ -92,7 +92,7 @@ function buildReading({ raw, fetchedAt, now, source, fallbackReason = null }) {
 
   return {
     source,
-    fallbackReason,
+    fallbackReason: scrubSecrets(fallbackReason),
     fetchedAt,
     ageMs,
     isStale: ageMs === null || ageMs > STALE_AFTER_MS,
@@ -126,7 +126,7 @@ export async function resolveUsageLimits({
     return buildReading({ raw: limits, fetchedAt, now, source: 'live' })
   } catch (error) {
     if (!cached) return null
-    return { ...cached, fallbackReason: error.message }
+    return { ...cached, fallbackReason: scrubSecrets(error.message) }
   }
 }
 
@@ -156,7 +156,7 @@ export function createLimitsResolver({
     }
 
     const cached = await readUsageLimits({ configPath, now })
-    return cached ? { ...cached, fallbackReason: reason } : null
+    return cached ? { ...cached, fallbackReason: scrubSecrets(reason) } : null
   }
 
   return async function resolve({ now = Date.now() } = {}) {

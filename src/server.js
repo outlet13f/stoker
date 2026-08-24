@@ -10,6 +10,7 @@ import { createCollector } from './collector.js'
 import { buildReportSet } from './report.js'
 import { parseDateRange } from './daterange.js'
 import { createLimitsResolver } from './limits.js'
+import { scrubSecrets } from './credentials.js'
 import { renderPage } from './render/html.js'
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
@@ -69,7 +70,7 @@ export async function startServer({
           )
         } catch (invalid) {
           // 사용자 입력 오류는 400 으로 되돌려 준다(500 으로 감추지 않는다)
-          response.writeHead(400, JSON_HEADERS).end(JSON.stringify({ error: invalid.message }))
+          response.writeHead(400, JSON_HEADERS).end(JSON.stringify({ error: scrubSecrets(invalid.message) }))
           return
         }
 
@@ -86,8 +87,9 @@ export async function startServer({
 
       response.writeHead(404, JSON_HEADERS).end(JSON.stringify({ error: 'not found' }))
     } catch (error) {
-      // 대시보드가 죽는 것보다 오류를 노출하는 편이 낫다
-      response.writeHead(500, JSON_HEADERS).end(JSON.stringify({ error: error.message }))
+      // 대시보드가 죽는 것보다 오류를 노출하는 편이 낫다.
+      // 다만 밖으로 나가는 문자열은 마지막으로 한 번 더 훑는다.
+      response.writeHead(500, JSON_HEADERS).end(JSON.stringify({ error: scrubSecrets(error.message) }))
     }
   })
 

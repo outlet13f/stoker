@@ -121,8 +121,8 @@ function renderLimits(report) {
   const entries = limits?.entries ?? []
 
   if (entries.length === 0) {
-    node.innerHTML =
-      '<p class="empty">계정 한도를 읽지 못했습니다. Claude Code 를 한 번 실행하면 캐시가 채워집니다.</p>'
+    const why = limits?.fallbackReason
+    node.innerHTML = `<p class="empty">계정 한도를 읽지 못했습니다.${why ? ` ${esc(why)}` : ' Claude Code 로 한 번 로그인하면 조회할 수 있습니다.'}</p>`
     $('limits-note').textContent = ''
     return
   }

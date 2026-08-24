@@ -54,12 +54,12 @@ test('fetchLiveUtilization refuses to call without a token', async () => {
   await assert.rejects(() => fetchLiveUtilization({ credentials: null, fetchImpl: ok(payload) }), /토큰/)
 })
 
-test('fetchLiveUtilization throws on an auth failure', async () => {
+test('fetchLiveUtilization throws on a server-side failure', async () => {
   // Arrange
-  const fetchImpl = async () => ({ ok: false, status: 401, json: async () => ({}) })
+  const fetchImpl = async () => ({ ok: false, status: 503, headers: { get: () => null }, json: async () => ({}) })
 
   // Assert
-  await assert.rejects(() => fetchLiveUtilization({ credentials, fetchImpl }), /HTTP 401/)
+  await assert.rejects(() => fetchLiveUtilization({ credentials, fetchImpl }), /HTTP 503/)
 })
 
 test('fetchLiveUtilization throws when the shape is not what we know', async () => {
@@ -154,4 +154,88 @@ test('fetchLiveUtilization copes with a missing or unusable Retry-After', async 
   // Assert
   assert.equal((await fetchLiveUtilization({ credentials, fetchImpl: make(null) }).catch((e) => e)).retryAfterMs, null)
   assert.equal((await fetchLiveUtilization({ credentials, fetchImpl: make('soon') }).catch((e) => e)).retryAfterMs, null)
+})
+
+/* ---------- 스키마 드리프트 ---------- */
+
+test('fetchLiveUtilization rejects a list whose entries it cannot read', async () => {
+  // Arrange — percent 가 pct 로 바뀐 상황. 그냥 통과시키면 "실시간 성공,
+  // 항목 0개" 가 되어 화면에는 아무것도 안 나오면서 실시간인 줄 알게 된다.
+  const drifted = { limits: [{ kind: 'session', group: 'session', pct: 71, resets_at: null }] }
+
+  // Assert
+  await assert.rejects(
+    () => fetchLiveUtilization({ credentials, fetchImpl: ok(drifted) }),
+    /형태가 다릅니다/,
+  )
+})
+
+test('fetchLiveUtilization accepts a list where at least one entry is readable', async () => {
+  // Arrange — 새 종류가 섞여 들어와도 아는 것이 하나라도 있으면 쓴다
+  const mixed = {
+    limits: [
+      { kind: 'brand_new', something: 'else' },
+      { kind: 'session', group: 'session', percent: 71, resets_at: null },
+    ],
+  }
+
+  // Act
+  const result = await fetchLiveUtilization({ credentials, fetchImpl: ok(mixed), now: 1 })
+
+  // Assert
+  assert.equal(result.limits.length, 2)
+})
+
+test('fetchLiveUtilization accepts a genuinely empty list', async () => {
+  // Arrange — 한도가 하나도 설정되지 않은 계정은 빈 배열이 정상이다
+  const result = await fetchLiveUtilization({ credentials, fetchImpl: ok({ limits: [] }), now: 1 })
+
+  // Assert
+  assert.deepEqual(result.limits, [])
+})
+
+/* ---------- 토큰 만료 ---------- */
+
+test('fetchLiveUtilization does not bother calling with an expired token', async () => {
+  // Arrange
+  const expired = Object.defineProperty({ source: 'file', expiresAt: 1000 }, 'accessToken', {
+    value: TOKEN, enumerable: false,
+  })
+  let called = false
+
+  // Act
+  const error = await fetchLiveUtilization({
+    credentials: expired,
+    fetchImpl: async () => { called = true; return ok({ limits: [] })() },
+    now: 2000,
+  }).catch((e) => e)
+
+  // Assert
+  assert.equal(called, false, '만료된 토큰으로 쓸데없이 호출하지 않는다')
+  assert.match(error.message, /만료/)
+  assert.match(error.message, /Claude Code/)
+})
+
+test('fetchLiveUtilization explains a 401 in terms the user can act on', async () => {
+  // Arrange
+  const fetchImpl = async () => ({ ok: false, status: 401, headers: { get: () => null }, json: async () => ({}) })
+
+  // Act
+  const error = await fetchLiveUtilization({ credentials, fetchImpl }).catch((e) => e)
+
+  // Assert
+  assert.match(error.message, /만료/)
+  assert.match(error.message, /Claude Code/)
+})
+
+test('fetchLiveUtilization still calls when the token has no known expiry', async () => {
+  // Arrange
+  let called = false
+  const fetchImpl = async () => { called = true; return { ok: true, status: 200, json: async () => payload } }
+
+  // Act
+  await fetchLiveUtilization({ credentials, fetchImpl, now: Date.now() })
+
+  // Assert
+  assert.equal(called, true)
 })

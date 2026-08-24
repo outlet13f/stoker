@@ -110,6 +110,22 @@ export async function loadCredentials({ env = process.env, file = CREDENTIALS_FI
   return (await fromEnvironment(env)) ?? (await fromFile(file)) ?? (await fromKeychain())
 }
 
+/**
+ * 토큰을 모르는 지점에서도 쓸 수 있는 방어선(HTTP 500 핸들러 등).
+ * 토큰처럼 생긴 문자열을 패턴으로 지운다. redact 가 실패하거나 앞으로
+ * 누군가 새 경로를 만들어도 여기서 한 번 더 걸린다.
+ */
+const SECRET_PATTERNS = [
+  [/sk-ant-[A-Za-z0-9_-]{10,}/g, '<redacted>'],
+  [/\b(Bearer)\s+[A-Za-z0-9._~+/-]{20,}=*/gi, '$1 <redacted>'],
+]
+
+export function scrubSecrets(text) {
+  if (typeof text !== 'string') return text
+
+  return SECRET_PATTERNS.reduce((acc, [pattern, replacement]) => acc.replace(pattern, replacement), text)
+}
+
 /** 문자열에서 토큰을 지운다. 로그·에러에 내보내기 전에 반드시 통과시킨다. */
 export function redact(text, credentials) {
   const token = credentials?.accessToken

@@ -269,13 +269,45 @@ test('resolveUsageLimits falls back to the cache and says why', async () => {
     const limits = await resolveUsageLimits({
       configPath, now: NOW,
       loadCredentialsImpl: async () => fakeCreds(),
-      fetchImpl: async () => ({ ok: false, status: 401, json: async () => ({}) }),
+      fetchImpl: async () => ({ ok: false, status: 503, headers: { get: () => null }, json: async () => ({}) }),
     })
 
     // Assert — 조용히 낡은 값을 보여주면 실시간인 줄 오해한다
     assert.equal(limits.source, 'cache')
-    assert.match(limits.fallbackReason, /HTTP 401/)
+    assert.match(limits.fallbackReason, /HTTP 503/)
     assert.equal(limits.entries.length, 3)
+  })
+})
+
+test('an expired token produces a reason the user can act on', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Act
+    const limits = await resolveUsageLimits({
+      configPath, now: NOW,
+      loadCredentialsImpl: async () => fakeCreds(),
+      fetchImpl: async () => ({ ok: false, status: 401, headers: { get: () => null }, json: async () => ({}) }),
+    })
+
+    // Assert
+    assert.equal(limits.source, 'cache')
+    assert.match(limits.fallbackReason, /만료/)
+    assert.match(limits.fallbackReason, /Claude Code/)
+  })
+})
+
+test('a drifted response schema falls back instead of showing nothing', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Arrange — percent 가 pct 로 바뀐 상황
+    const limits = await resolveUsageLimits({
+      configPath, now: NOW,
+      loadCredentialsImpl: async () => fakeCreds(),
+      fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ limits: [{ kind: 'session', pct: 71 }] }) }),
+    })
+
+    // Assert — '실시간 성공, 항목 0개' 가 되면 안 된다
+    assert.equal(limits.source, 'cache')
+    assert.equal(limits.entries.length, 3)
+    assert.match(limits.fallbackReason, /형태가 다릅니다/)
   })
 })
 
