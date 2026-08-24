@@ -26,9 +26,9 @@ async function makeRoot() {
   return root
 }
 
-async function withServer(run) {
+async function withServer(run, serverOptions = {}) {
   const root = await makeRoot()
-  const { server } = await startServer({ port: 0, timeZone: 'UTC', root })
+  const { server } = await startServer({ port: 0, timeZone: 'UTC', root, ...serverOptions })
   const { port } = server.address()
 
   try {
@@ -134,5 +134,35 @@ test('the report API rejects an impossible calendar date', async () => {
     const response = await fetch(`${base}/api/report?from=2026-02-30&to=2026-03-01`)
 
     assert.equal(response.status, 400)
+  })
+})
+
+/* ---------- 갱신 주기 ---------- */
+
+test('the report API tells the client the default refresh interval', async () => {
+  await withServer(async (base) => {
+    const { config } = await (await fetch(`${base}/api/report`)).json()
+    assert.equal(config.refreshSeconds, 30)
+  })
+})
+
+test('the report API passes through a configured refresh interval', async () => {
+  await withServer(async (base) => {
+    const { config } = await (await fetch(`${base}/api/report`)).json()
+    assert.equal(config.refreshSeconds, 10)
+  }, { refreshSeconds: 10 })
+})
+
+test('the report API can advertise auto refresh being off', async () => {
+  await withServer(async (base) => {
+    const { config } = await (await fetch(`${base}/api/report`)).json()
+    assert.equal(config.refreshSeconds, 0)
+  }, { refreshSeconds: 0 })
+})
+
+test('the report API offers the selectable refresh intervals', async () => {
+  await withServer(async (base) => {
+    const { config } = await (await fetch(`${base}/api/report`)).json()
+    assert.deepEqual(config.refreshChoices, [0, 5, 10, 30, 60, 300])
   })
 })

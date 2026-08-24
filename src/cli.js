@@ -8,7 +8,7 @@ import { buildReportSet } from './report.js'
 import { renderPage } from './render/html.js'
 import { renderSummary } from './summary.js'
 import { startServer } from './server.js'
-import { DEFAULT_REFRESH_SECONDS } from './constants.js'
+import { REFRESH_CHOICES } from './constants.js'
 
 const DEFAULT_OUT = path.join(process.cwd(), 'dist', 'dashboard.html')
 
@@ -26,6 +26,8 @@ claude-usage — Claude Code 사용량 모니터링 대시보드
   --days <일수>      터미널 요약에 쓸 기간 (기본 30, HTML 은 7/30/90/전체 모두 포함)
   --out <경로>       HTML 저장 위치 (기본 ./dist/dashboard.html)
   --tz <타임존>      집계 기준 타임존 (기본: 시스템 설정)
+  --refresh <초>     대시보드 자동 갱신 주기 (기본 30, 5~3600, 0 은 끔)
+                     실행 후에도 대시보드 헤더에서 바꿀 수 있습니다
   --open             만든 HTML 또는 서버 주소를 브라우저로 열기
   --help, -h         이 도움말
 `
@@ -36,10 +38,18 @@ function openInBrowser(target) {
 }
 
 async function runServer(options) {
-  const { url } = await startServer({ port: options.port, timeZone: options.timeZone })
+  const { url } = await startServer({
+    port: options.port,
+    timeZone: options.timeZone,
+    refreshSeconds: options.refreshSeconds,
+  })
 
   console.log(`대시보드 실행 중 → ${url}`)
-  console.log(`${DEFAULT_REFRESH_SECONDS}초마다 갱신합니다. 종료하려면 Ctrl+C.`)
+  console.log(
+    options.refreshSeconds > 0
+      ? `${options.refreshSeconds}초마다 갱신합니다(대시보드에서 바꿀 수 있습니다). 종료하려면 Ctrl+C.`
+      : '자동 갱신을 끈 상태입니다(대시보드에서 켤 수 있습니다). 종료하려면 Ctrl+C.',
+  )
   if (options.open) openInBrowser(url)
 }
 
@@ -55,7 +65,13 @@ async function runBuild(options) {
   const outPath = options.out ?? DEFAULT_OUT
   const html = await renderPage({
     reports,
-    config: { live: false, timeZone: options.timeZone, fileCount: stats.fileCount },
+    config: {
+      live: false,
+      timeZone: options.timeZone,
+      fileCount: stats.fileCount,
+      refreshSeconds: 0,
+      refreshChoices: REFRESH_CHOICES,
+    },
   })
 
   await fs.mkdir(path.dirname(outPath), { recursive: true })

@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { DEFAULT_PORT, DEFAULT_REFRESH_SECONDS } from './constants.js'
+import { DEFAULT_PORT, DEFAULT_REFRESH_SECONDS, REFRESH_CHOICES } from './constants.js'
 import { createCollector } from './collector.js'
 import { buildReportSet } from './report.js'
 import { parseDateRange } from './daterange.js'
@@ -9,7 +9,7 @@ const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache
 const HTML_HEADERS = { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }
 
 /** 매 요청마다 다시 모으되, 바뀐 파일만 파싱되므로 비용이 낮다 */
-function createSnapshotSource({ timeZone, root }) {
+function createSnapshotSource({ timeZone, root, refreshSeconds }) {
   const collector = createCollector(root ? { root } : {})
 
   return async function snapshot(customWindow = null) {
@@ -19,7 +19,8 @@ function createSnapshotSource({ timeZone, root }) {
       reports: buildReportSet(records, { now: Date.now(), timeZone, edits, customWindow }),
       config: {
         live: true,
-        refreshSeconds: DEFAULT_REFRESH_SECONDS,
+        refreshSeconds,
+        refreshChoices: REFRESH_CHOICES,
         timeZone,
         fileCount: stats.fileCount,
         collectMs: stats.durationMs,
@@ -32,8 +33,13 @@ function createSnapshotSource({ timeZone, root }) {
   }
 }
 
-export async function startServer({ port = DEFAULT_PORT, timeZone, root } = {}) {
-  const snapshot = createSnapshotSource({ timeZone, root })
+export async function startServer({
+  port = DEFAULT_PORT,
+  timeZone,
+  root,
+  refreshSeconds = DEFAULT_REFRESH_SECONDS,
+} = {}) {
+  const snapshot = createSnapshotSource({ timeZone, root, refreshSeconds })
 
   const server = http.createServer(async (request, response) => {
     try {

@@ -46,6 +46,16 @@ export const DEFAULT_TIER = 'sonnet'
 /** 대시보드 기본값 */
 export const DEFAULT_PORT = 7331
 export const DEFAULT_REFRESH_SECONDS = 30
+
+/**
+ * 갱신 주기의 허용 범위(초). 하한은 수집기를 두드리지 않을 만큼,
+ * 상한은 "켜 뒀는데 안 도는" 오해가 없을 만큼으로 잡았다. 0 은 자동 갱신 끔.
+ */
+export const MIN_REFRESH_SECONDS = 5
+export const MAX_REFRESH_SECONDS = 3600
+
+/** 대시보드에서 고를 수 있는 주기(초). 0 은 '멈춤'. */
+export const REFRESH_CHOICES = [0, 5, 10, 30, 60, 300]
 export const DEFAULT_RANGE_DAYS = 30
 export const TOP_N_PROJECTS = 12
 export const TOP_N_SESSIONS = 10

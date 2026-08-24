@@ -45,3 +45,49 @@ test('parseArgs rejects a value flag with nothing after it', () => {
 test('parseArgs rejects a value flag followed by another flag', () => {
   assert.throws(() => parseArgs(['--out', '--serve']), /--out/)
 })
+
+/* ---------- 갱신 주기 ---------- */
+
+test('parseArgs defaults the refresh interval', () => {
+  // Act
+  const options = parseArgs([])
+
+  // Assert
+  assert.equal(options.refreshSeconds, 30)
+})
+
+test('parseArgs reads a refresh interval in seconds', () => {
+  // Act & Assert
+  assert.equal(parseArgs(['--refresh', '10']).refreshSeconds, 10)
+  assert.equal(parseArgs(['--refresh', '300']).refreshSeconds, 300)
+})
+
+test('parseArgs treats a zero refresh interval as no auto refresh', () => {
+  // Act
+  const options = parseArgs(['--refresh', '0'])
+
+  // Assert
+  assert.equal(options.refreshSeconds, 0)
+})
+
+test('parseArgs rejects a refresh interval that would hammer the collector', () => {
+  // Assert
+  assert.throws(() => parseArgs(['--refresh', '1']), /5초/)
+  assert.throws(() => parseArgs(['--refresh', '4.9']), /5초/)
+})
+
+test('parseArgs treats a leading-dash value as a missing value, not a number', () => {
+  // Assert — '--refresh --serve' 같은 오타를 숫자로 오해하지 않는다
+  assert.throws(() => parseArgs(['--refresh', '-3']), /값이 필요합니다/)
+  assert.throws(() => parseArgs(['--refresh', '--serve']), /값이 필요합니다/)
+})
+
+test('parseArgs rejects an absurdly long refresh interval', () => {
+  // Assert
+  assert.throws(() => parseArgs(['--refresh', '99999']), /3600/)
+})
+
+test('parseArgs rejects a non-numeric refresh interval', () => {
+  // Assert
+  assert.throws(() => parseArgs(['--refresh', 'often']), /숫자/)
+})

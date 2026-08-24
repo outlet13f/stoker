@@ -25,6 +25,8 @@ const state = {
   connection: 'static',
   // { from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' } — 서버에 같은 창을 계속 요청하기 위해 들고 있는다
   customWindow: null,
+  // 0 이면 자동 갱신을 걸지 않는다. 사용자가 헤더에서 바꾼다.
+  refreshSeconds: null,
 }
 
 /* ---------- 유틸 ---------- */
@@ -787,6 +789,7 @@ function renderAll() {
   renderSessions(report)
   renderColophon(report)
   renderDateRange(report)
+  renderRefreshControl()
 }
 
 /* ---------- 실시간 갱신 ---------- */
@@ -822,16 +825,109 @@ async function refresh() {
   renderAll()
 }
 
+/* ---------- 자동 갱신 주기 ---------- */
+const REFRESH_PREF_KEY = 'claude-usage-dashboard.refreshSeconds'
+const DEFAULT_REFRESH_CHOICES = [0, 5, 10, 30, 60, 300]
+
+let refreshTimer = null
+
+function refreshChoices() {
+  const offered = state.config.refreshChoices
+  return Array.isArray(offered) && offered.length > 0 ? offered : DEFAULT_REFRESH_CHOICES
+}
+
+function refreshLabel(seconds) {
+  if (seconds === 0) return '갱신 멈춤'
+  if (seconds % 60 === 0) return `${seconds / 60}분마다`
+  return `${seconds}초마다`
+}
+
+/** localStorage 는 사파리 프라이버시 모드 등에서 던진다. 취향 저장은 실패해도 그냥 넘긴다. */
+function readRefreshPreference() {
+  try {
+    // Number(null) 은 0 이다. 저장값이 없는 것과 '멈춤'(0)을 섞으면
+    // 처음 열었을 때부터 갱신이 멈춘 채로 시작한다.
+    const raw = window.localStorage?.getItem(REFRESH_PREF_KEY)
+    if (raw === null || raw === undefined || raw === '') return null
+
+    const stored = Number(raw)
+    return Number.isFinite(stored) && stored >= 0 ? stored : null
+  } catch {
+    return null
+  }
+}
+
+function writeRefreshPreference(seconds) {
+  try {
+    window.localStorage?.setItem(REFRESH_PREF_KEY, String(seconds))
+  } catch {
+    /* 저장 못 해도 이번 세션에는 적용된다 */
+  }
+}
+
+/** 타이머를 매번 새로 건다. 0 이거나 정적 스냅샷이면 걸지 않는다. */
+function scheduleRefresh() {
+  if (refreshTimer !== null) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+
+  if (!state.config.live || !state.refreshSeconds) return
+  refreshTimer = setInterval(refresh, state.refreshSeconds * 1000)
+}
+
+function renderRefreshControl() {
+  const select = $('refresh-select')
+  if (!select) return
+
+  const choices = refreshChoices()
+  select.innerHTML = choices
+    .map((seconds) => `<option value="${seconds}"${seconds === state.refreshSeconds ? ' selected' : ''}>${esc(refreshLabel(seconds))}</option>`)
+    .join('')
+
+  select.disabled = !state.config.live
+  select.title = state.config.live
+    ? '자동 갱신 주기'
+    : '정적 스냅샷이라 자동 갱신이 없습니다'
+}
+
+function bindRefreshControl() {
+  const select = $('refresh-select')
+  if (!select) return
+
+  select.addEventListener('change', () => {
+    const seconds = Number(select.value)
+    if (!Number.isFinite(seconds) || seconds < 0) return
+
+    state.refreshSeconds = seconds
+    writeRefreshPreference(seconds)
+    scheduleRefresh()
+    renderRefreshControl()
+  })
+}
+
+/** 저장된 취향 > 서버가 준 기본값 > 30초 */
+function initialRefreshSeconds() {
+  const stored = readRefreshPreference()
+  if (stored !== null && refreshChoices().includes(stored)) return stored
+
+  const fromServer = Number(state.config.refreshSeconds)
+  return Number.isFinite(fromServer) && fromServer >= 0 ? fromServer : 30
+}
+
 function boot() {
   tooltip.node = $('tooltip')
   state.connection = state.config.live ? 'live' : 'static'
+  state.refreshSeconds = initialRefreshSeconds()
   bindDateRange()
+  bindRefreshControl()
   renderAll()
 
   if (state.config.live) {
-    setInterval(refresh, state.config.refreshSeconds * 1000)
+    scheduleRefresh()
+    // 탭으로 돌아왔을 때는 주기와 무관하게 한 번 맞춘다(자동 갱신을 끈 경우는 제외)
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) refresh()
+      if (!document.hidden && state.refreshSeconds) refresh()
     })
   }
 

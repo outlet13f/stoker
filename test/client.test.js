@@ -56,6 +56,9 @@ function fakeElement(id) {
     async click() {
       await this.handlers.get('click')?.()
     },
+    async fire(type) {
+      await this.handlers.get(type)?.()
+    },
     querySelectorAll: () => [],
     querySelector: () => null,
     focus() {},
@@ -83,15 +86,28 @@ function makeHarness({ reports, config }) {
     createElement: (tag) => fakeElement(tag),
   }
 
+  const store = new Map()
   const window = {
     __REPORTS__: reports,
     __CONFIG__: config,
     addEventListener() {},
     matchMedia: () => ({ matches: false, addEventListener() {} }),
+    localStorage: {
+      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => store.set(key, value),
+    },
   }
 
   const getComputedStyle = () => ({ getPropertyValue: () => '#000000' })
-  const setInterval = () => 0
+  const intervals = []
+  const cleared = []
+  let nextTimerId = 1
+  const setInterval = (fn, ms) => {
+    const id = nextTimerId++
+    intervals.push({ id, ms, fn })
+    return id
+  }
+  const clearInterval = (id) => cleared.push(id)
   const setTimeout = (fn) => { void fn; return 0 }
   const calls = []
   let failure = null
@@ -102,28 +118,37 @@ function makeHarness({ reports, config }) {
   }
 
   return {
-    document, window, getComputedStyle, setInterval, setTimeout, fetch, nodes, listeners, calls,
+    document, window, getComputedStyle, setInterval, clearInterval, setTimeout, fetch,
+    nodes, listeners, calls, intervals, cleared, store,
     failWith(message) { failure = message },
   }
 }
 
-async function boot({ withEdits = true, live = true } = {}) {
+async function boot({ withEdits = true, live = true, config: extraConfig = {}, stored = null } = {}) {
   const reports = buildReportSet([record()], {
     now: NOW,
     timeZone: 'UTC',
     edits: withEdits ? [edit()] : [],
   })
-  const config = { live, refreshSeconds: 30, timeZone: 'UTC', fileCount: 3 }
+  const config = {
+    live,
+    refreshSeconds: 30,
+    refreshChoices: [0, 5, 10, 30, 60, 300],
+    timeZone: 'UTC',
+    fileCount: 3,
+    ...extraConfig,
+  }
   const harness = makeHarness({ reports, config })
+  if (stored !== null) harness.store.set('claude-usage-dashboard.refreshSeconds', String(stored))
   const script = await buildClientScript()
 
   const run = new Function(
-    'window', 'document', 'getComputedStyle', 'setInterval', 'setTimeout', 'fetch',
+    'window', 'document', 'getComputedStyle', 'setInterval', 'clearInterval', 'setTimeout', 'fetch',
     script,
   )
   run(
     harness.window, harness.document, harness.getComputedStyle,
-    harness.setInterval, harness.setTimeout, harness.fetch,
+    harness.setInterval, harness.clearInterval, harness.setTimeout, harness.fetch,
   )
 
   const domReady = harness.listeners.get('DOMContentLoaded')
@@ -294,4 +319,117 @@ test('the polling refresh keeps requesting the chosen custom window', async () =
 
   // Assert
   assert.match(harness.calls.at(-1), /from=2026-08-01/)
+})
+
+/* ---------- 자동 갱신 주기 ---------- */
+
+test('the client schedules polling at the interval the server advertised', async () => {
+  // Act
+  const harness = await boot({ config: { refreshSeconds: 10 } })
+
+  // Assert
+  assert.equal(harness.intervals.at(-1).ms, 10_000)
+})
+
+test('the refresh control lists every offered interval with the current one selected', async () => {
+  // Act
+  const { nodes } = await boot({ config: { refreshSeconds: 60 } })
+
+  // Assert
+  const html = nodes.get('refresh-select').innerHTML
+  assert.match(html, /갱신 멈춤/)
+  assert.match(html, /5초마다/)
+  assert.match(html, /1분마다/)
+  assert.match(html, /5분마다/)
+  assert.match(html, /value="60" selected/)
+})
+
+test('changing the interval reschedules polling and clears the old timer', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+  const firstTimer = harness.intervals.at(-1).id
+  const select = harness.nodes.get('refresh-select')
+
+  // Act
+  select.value = '5'
+  await select.fire('change')
+
+  // Assert
+  assert.ok(harness.cleared.includes(firstTimer), '이전 타이머를 해제해야 한다')
+  assert.equal(harness.intervals.at(-1).ms, 5_000)
+})
+
+test('choosing 갱신 멈춤 stops polling entirely', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+  const before = harness.intervals.length
+  const select = harness.nodes.get('refresh-select')
+
+  // Act
+  select.value = '0'
+  await select.fire('change')
+
+  // Assert
+  assert.equal(harness.intervals.length, before, '새 타이머를 걸지 않아야 한다')
+  assert.match(select.innerHTML, /value="0" selected/)
+})
+
+test('a paused dashboard does not refresh when the tab regains focus', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+  const select = harness.nodes.get('refresh-select')
+  select.value = '0'
+  await select.fire('change')
+  const before = harness.calls.length
+
+  // Act
+  await harness.listeners.get('visibilitychange')?.()
+
+  // Assert
+  assert.equal(harness.calls.length, before)
+})
+
+test('the chosen interval is remembered across reloads', async () => {
+  // Arrange & Act
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+  const select = harness.nodes.get('refresh-select')
+  select.value = '5'
+  await select.fire('change')
+
+  // Assert
+  assert.equal(harness.store.get('claude-usage-dashboard.refreshSeconds'), '5')
+})
+
+test('a remembered interval wins over the server default', async () => {
+  // Act
+  const harness = await boot({ config: { refreshSeconds: 30 }, stored: 60 })
+
+  // Assert
+  assert.equal(harness.intervals.at(-1).ms, 60_000)
+  assert.match(harness.nodes.get('refresh-select').innerHTML, /value="60" selected/)
+})
+
+test('a remembered interval that is no longer offered falls back to the server default', async () => {
+  // Act
+  const harness = await boot({ config: { refreshSeconds: 30 }, stored: 7 })
+
+  // Assert
+  assert.equal(harness.intervals.at(-1).ms, 30_000)
+})
+
+test('the refresh control is disabled in a static export', async () => {
+  // Act
+  const { nodes } = await boot({ live: false, config: { refreshSeconds: 0 } })
+
+  // Assert
+  assert.equal(nodes.get('refresh-select').disabled, true)
+  assert.match(nodes.get('refresh-select').title, /자동 갱신이 없습니다/)
+})
+
+test('a static export schedules no polling at all', async () => {
+  // Act
+  const harness = await boot({ live: false, config: { refreshSeconds: 0 } })
+
+  // Assert
+  assert.equal(harness.intervals.length, 0)
 })

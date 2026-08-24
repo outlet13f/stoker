@@ -44,7 +44,11 @@ function bodyMarkup() {
         <span>응답 <b id="req-count">-</b></span>
         <span>기간 <b id="span-text">-</b></span>
       </div>
-      <button class="toggle" id="theme-toggle" type="button">테마 전환</button>
+      <div class="masthead-controls">
+        <label class="sr-only" for="refresh-select">자동 갱신 주기</label>
+        <select class="toggle" id="refresh-select"></select>
+        <button class="toggle" id="theme-toggle" type="button">테마 전환</button>
+      </div>
     </div>
   </header>
 

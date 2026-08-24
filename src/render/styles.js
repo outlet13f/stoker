@@ -252,6 +252,16 @@ tbody tr:last-child td { border-bottom: none; }
 .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .chip:focus-visible, .toggle:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* 헤더 제어(갱신 주기 · 테마) */
+.masthead-controls { display: inline-flex; align-items: center; gap: 8px; }
+select.toggle { appearance: none; padding-right: 22px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%),
+    linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
+select.toggle:disabled { color: var(--ink-faint); cursor: not-allowed; }
+
 /* 날짜 직접 선택 */
 .date-range { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: 10px; }
 .date-input {
