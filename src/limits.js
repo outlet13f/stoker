@@ -1,5 +1,7 @@
 import fs from 'node:fs/promises'
-import { CLAUDE_CONFIG_FILE } from './constants.js'
+import { CLAUDE_CONFIG_FILE, LIVE_LIMITS_MIN_INTERVAL_MS } from './constants.js'
+import { loadCredentials } from './credentials.js'
+import { fetchLiveUtilization } from './usage-api.js'
 
 /**
  * 계정의 실제 사용 한도(퍼센트). Claude Code 가 서버에서 받아 ~/.claude.json 의
@@ -80,12 +82,108 @@ export async function readUsageLimits({ configPath = CLAUDE_CONFIG_FILE, now = D
 
   const source = Array.isArray(cached.utilization?.limits) ? cached.utilization.limits : []
   const fetchedAt = typeof cached.fetchedAtMs === 'number' ? cached.fetchedAtMs : null
+
+  return buildReading({ raw: source, fetchedAt, now, source: 'cache' })
+}
+
+/** 캐시든 실시간이든 같은 형태로 내보낸다 */
+function buildReading({ raw, fetchedAt, now, source, fallbackReason = null }) {
   const ageMs = fetchedAt === null ? null : Math.max(0, now - fetchedAt)
 
   return {
+    source,
+    fallbackReason,
     fetchedAt,
     ageMs,
     isStale: ageMs === null || ageMs > STALE_AFTER_MS,
-    entries: source.map(normalise).filter(Boolean),
+    entries: (Array.isArray(raw) ? raw : []).map(normalise).filter(Boolean),
+  }
+}
+
+/**
+ * 한도를 구한다. live 면 서버에서 직접 받아 보고, 어떤 이유로든 실패하면
+ * 캐시로 되돌아간다. 되돌아간 이유는 fallbackReason 으로 알린다 —
+ * 조용히 낡은 값을 보여주면 실시간인 줄 오해한다.
+ */
+export async function resolveUsageLimits({
+  live = true,
+  configPath = CLAUDE_CONFIG_FILE,
+  now = Date.now(),
+  loadCredentialsImpl = loadCredentials,
+  fetchImpl,
+} = {}) {
+  const cached = await readUsageLimits({ configPath, now })
+  if (!live) return cached
+
+  try {
+    const credentials = await loadCredentialsImpl()
+    const { limits, fetchedAt } = await fetchLiveUtilization({
+      credentials,
+      now,
+      ...(fetchImpl ? { fetchImpl } : {}),
+    })
+
+    return buildReading({ raw: limits, fetchedAt, now, source: 'live' })
+  } catch (error) {
+    if (!cached) return null
+    return { ...cached, fallbackReason: error.message }
+  }
+}
+
+/**
+ * 서버가 요청마다 쓰는 스로틀 붙은 조회기.
+ *
+ * 이 엔드포인트는 레이트 리밋이 걸린다(실측: 429 + Retry-After 203초).
+ * 대시보드 폴링 주기는 5초까지 내려갈 수 있으니 그대로 물리면 항상 429 가 되어
+ * 오히려 캐시만 보게 된다. 그래서 최소 간격을 두고, 429 를 받으면 서버가 알려준
+ * 시간만큼 쉬고, 그 사이에는 마지막 성공값을 재사용한다.
+ */
+export function createLimitsResolver({
+  live = true,
+  configPath = CLAUDE_CONFIG_FILE,
+  minIntervalMs = LIVE_LIMITS_MIN_INTERVAL_MS,
+  loadCredentialsImpl = loadCredentials,
+  fetchImpl,
+} = {}) {
+  let lastAttemptAt = -Infinity
+  let restUntil = 0
+  let lastLive = null
+
+  /** 마지막 성공값이 있으면 그것을, 없으면 파일 캐시를 쓴다 */
+  async function withoutCalling(now, reason) {
+    if (lastLive) {
+      return buildReading({ raw: lastLive.raw, fetchedAt: lastLive.fetchedAt, now, source: 'live', fallbackReason: reason })
+    }
+
+    const cached = await readUsageLimits({ configPath, now })
+    return cached ? { ...cached, fallbackReason: reason } : null
+  }
+
+  return async function resolve({ now = Date.now() } = {}) {
+    if (!live) return readUsageLimits({ configPath, now })
+
+    if (now < restUntil) {
+      return withoutCalling(now, `레이트 리밋 — ${Math.ceil((restUntil - now) / 1000)}초 후 재시도`)
+    }
+    if (now - lastAttemptAt < minIntervalMs) {
+      return withoutCalling(now, null)
+    }
+
+    lastAttemptAt = now
+    try {
+      const credentials = await loadCredentialsImpl()
+      const { limits, fetchedAt } = await fetchLiveUtilization({
+        credentials,
+        now,
+        ...(fetchImpl ? { fetchImpl } : {}),
+      })
+
+      lastLive = { raw: limits, fetchedAt }
+      return buildReading({ raw: limits, fetchedAt, now, source: 'live' })
+    } catch (error) {
+      // 429 면 서버가 알려준 만큼, 안 알려주면 최소 간격만큼 쉰다
+      if (error.status === 429) restUntil = now + (error.retryAfterMs ?? minIntervalMs)
+      return withoutCalling(now, error.message)
+    }
   }
 }

@@ -91,3 +91,20 @@ test('parseArgs rejects a non-numeric refresh interval', () => {
   // Assert
   assert.throws(() => parseArgs(['--refresh', 'often']), /숫자/)
 })
+
+/* ---------- 실시간 한도 조회 ---------- */
+
+test('parseArgs asks for live limits by default', () => {
+  assert.equal(parseArgs([]).liveLimits, true)
+})
+
+test('parseArgs can turn the network call off', () => {
+  // Act & Assert — 인증된 외부 요청을 끄고 캐시만 쓰는 선택
+  assert.equal(parseArgs(['--no-live-limits']).liveLimits, false)
+})
+
+test('parseArgs keeps --no-live-limits out of the flag name mangling', () => {
+  // Assert — '--no-live-limits' 가 options["no-live-limits"] 로 새지 않아야 한다
+  const options = parseArgs(['--no-live-limits'])
+  assert.equal('no-live-limits' in options, false)
+})

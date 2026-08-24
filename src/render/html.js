@@ -32,7 +32,8 @@ function bodyMarkup() {
       <h1>${PAGE_TITLE}</h1>
       <p class="lede">
         <code>~/.claude/projects</code> 의 세션 기록을 직접 읽어 토큰과 환산 비용을 집계합니다.
-        네트워크로 나가는 데이터는 없습니다.
+        집계는 전부 로컬에서 하고, 계정 한도만 Anthropic 에 직접 조회합니다
+        (<code>--no-live-limits</code> 로 끌 수 있습니다).
       </p>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">

@@ -616,6 +616,8 @@ test('the refresh button ignores a second click while one is in flight', async (
 /* ---------- 사용 한도 ---------- */
 
 const limitsConfig = (over = {}) => ({
+  source: 'cache',
+  fallbackReason: null,
   fetchedAt: NOW - 60_000,
   ageMs: 60_000,
   isStale: false,
@@ -657,12 +659,22 @@ test('the running limit is marked so it is obvious which one moves', async () =>
   assert.match(nodes.get('limits').innerHTML, /진행 중/)
 })
 
-test('a fresh reading just states its age', async () => {
+test('a live reading says it came straight from the server', async () => {
+  // Act
+  const { nodes } = await boot({ config: { limits: limitsConfig({ source: 'live', ageMs: 0 }) } })
+
+  // Assert
+  assert.match(nodes.get('limits-note').textContent, /방금 서버에서 받아온 값/)
+  assert.doesNotMatch(nodes.get('limits-note').textContent, /캐시/)
+})
+
+test('a cached reading is labelled as cached with its age', async () => {
   // Act
   const { nodes } = await boot({ config: { limits: limitsConfig() } })
 
-  // Assert
-  assert.match(nodes.get('limits-note').textContent, /1분 전 기준/)
+  // Assert — 실시간인 줄 오해하면 안 된다
+  assert.match(nodes.get('limits-note').textContent, /캐시/)
+  assert.match(nodes.get('limits-note').textContent, /1분 전 값/)
 })
 
 test('a stale reading warns that the real figure is probably higher', async () => {
@@ -672,6 +684,16 @@ test('a stale reading warns that the real figure is probably higher', async () =
   // Assert
   assert.match(nodes.get('limits-note').textContent, /더 올라가 있을 수 있습니다/)
   assert.match(nodes.get('limits-note').textContent, /3시간 9분/)
+})
+
+test('a fallback explains why the live call did not work', async () => {
+  // Act
+  const { nodes } = await boot({
+    config: { limits: limitsConfig({ fallbackReason: '한도 조회 실패: HTTP 401' }) },
+  })
+
+  // Assert
+  assert.match(nodes.get('limits-note').textContent, /HTTP 401/)
 })
 
 test('the dashboard explains how to fill the cache when there is no reading', async () => {

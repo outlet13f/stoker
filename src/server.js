@@ -9,20 +9,22 @@ import {
 import { createCollector } from './collector.js'
 import { buildReportSet } from './report.js'
 import { parseDateRange } from './daterange.js'
-import { readUsageLimits } from './limits.js'
+import { createLimitsResolver } from './limits.js'
 import { renderPage } from './render/html.js'
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
 const HTML_HEADERS = { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }
 
 /** 매 요청마다 다시 모으되, 바뀐 파일만 파싱되므로 비용이 낮다 */
-function createSnapshotSource({ timeZone, root, refreshSeconds }) {
+function createSnapshotSource({ timeZone, root, refreshSeconds, liveLimits }) {
   const collector = createCollector(root ? { root } : {})
+  // 조회기는 요청 간에 유지돼야 한다. 매번 새로 만들면 스로틀이 무력해진다.
+  const resolveLimits = createLimitsResolver({ live: liveLimits })
 
   return async function snapshot(customWindow = null) {
     const { records, edits, stats } = await collector.collect()
     // 계정 한도는 구간과 무관하므로 리포트마다가 아니라 한 번만 읽는다
-    const limits = await readUsageLimits()
+    const limits = await resolveLimits()
 
     return {
       reports: buildReportSet(records, { now: Date.now(), timeZone, edits, customWindow }),
@@ -50,8 +52,9 @@ export async function startServer({
   timeZone,
   root,
   refreshSeconds = DEFAULT_REFRESH_SECONDS,
+  liveLimits = true,
 } = {}) {
-  const snapshot = createSnapshotSource({ timeZone, root, refreshSeconds })
+  const snapshot = createSnapshotSource({ timeZone, root, refreshSeconds, liveLimits })
 
   const server = http.createServer(async (request, response) => {
     try {

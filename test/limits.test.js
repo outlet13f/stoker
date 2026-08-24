@@ -3,7 +3,12 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { readUsageLimits, STALE_AFTER_MS } from '../src/limits.js'
+import {
+  readUsageLimits,
+  resolveUsageLimits,
+  createLimitsResolver,
+  STALE_AFTER_MS,
+} from '../src/limits.js'
 
 const NOW = Date.parse('2026-08-24T07:30:00Z')
 
@@ -224,5 +229,234 @@ test('readUsageLimits leaves an unparseable reset time as null', async () => {
 
     // Assert
     assert.equal(entries[0].resetsAt, null)
+  })
+})
+
+/* ---------- 실시간 조회와 캐시 폴백 ---------- */
+
+
+const TOKEN = 'sk-ant-oat01-EXAMPLE-TOKEN-VALUE-1234567890'
+const fakeCreds = () =>
+  Object.defineProperty({ source: 'env', expiresAt: null }, 'accessToken', { value: TOKEN, enumerable: false })
+
+const liveBody = {
+  limits: [
+    { kind: 'session', group: 'session', percent: 53, severity: 'normal', resets_at: null, is_active: true },
+  ],
+}
+
+test('resolveUsageLimits prefers the live reading', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Act
+    const limits = await resolveUsageLimits({
+      configPath, now: NOW,
+      loadCredentialsImpl: async () => fakeCreds(),
+      fetchImpl: async () => ({ ok: true, status: 200, json: async () => liveBody }),
+    })
+
+    // Assert
+    assert.equal(limits.source, 'live')
+    assert.equal(limits.entries.length, 1)
+    assert.equal(limits.entries[0].percent, 53)
+    assert.equal(limits.isStale, false)
+    assert.equal(limits.fallbackReason, null)
+  })
+})
+
+test('resolveUsageLimits falls back to the cache and says why', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Act
+    const limits = await resolveUsageLimits({
+      configPath, now: NOW,
+      loadCredentialsImpl: async () => fakeCreds(),
+      fetchImpl: async () => ({ ok: false, status: 401, json: async () => ({}) }),
+    })
+
+    // Assert — 조용히 낡은 값을 보여주면 실시간인 줄 오해한다
+    assert.equal(limits.source, 'cache')
+    assert.match(limits.fallbackReason, /HTTP 401/)
+    assert.equal(limits.entries.length, 3)
+  })
+})
+
+test('resolveUsageLimits falls back when no token can be found', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Act
+    const limits = await resolveUsageLimits({
+      configPath, now: NOW,
+      loadCredentialsImpl: async () => null,
+      fetchImpl: async () => { throw new Error('should not be called') },
+    })
+
+    // Assert
+    assert.equal(limits.source, 'cache')
+    assert.match(limits.fallbackReason, /토큰/)
+  })
+})
+
+test('resolveUsageLimits skips the network entirely when asked', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Arrange
+    let called = false
+
+    // Act
+    const limits = await resolveUsageLimits({
+      configPath, now: NOW, live: false,
+      loadCredentialsImpl: async () => { called = true; return fakeCreds() },
+    })
+
+    // Assert
+    assert.equal(called, false, '--no-live-limits 면 자격증명도 읽지 않는다')
+    assert.equal(limits.source, 'cache')
+  })
+})
+
+test('resolveUsageLimits returns null when live fails and there is no cache', async () => {
+  await withConfig({ numStartups: 1 }, async (configPath) => {
+    // Act
+    const limits = await resolveUsageLimits({
+      configPath, now: NOW,
+      loadCredentialsImpl: async () => null,
+    })
+
+    // Assert
+    assert.equal(limits, null)
+  })
+})
+
+test('the token never reaches the reading, even in a fallback reason', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Arrange — 서버가 토큰을 되돌려 주는 최악의 경우
+    const limits = await resolveUsageLimits({
+      configPath, now: NOW,
+      loadCredentialsImpl: async () => fakeCreds(),
+      fetchImpl: async () => { throw new Error(`upstream said Bearer ${TOKEN}`) },
+    })
+
+    // Assert
+    assert.doesNotMatch(JSON.stringify(limits), /EXAMPLE-TOKEN/)
+    assert.match(limits.fallbackReason, /<redacted>/)
+  })
+})
+
+/* ---------- 스로틀과 백오프 ---------- */
+
+function resolverHarness({ responses, configPath, minIntervalMs = 300_000 }) {
+  let index = 0
+  const calls = []
+  const resolve = createLimitsResolver({
+    configPath,
+    minIntervalMs,
+    loadCredentialsImpl: async () => fakeCreds(),
+    fetchImpl: async () => {
+      calls.push(index)
+      const next = responses[Math.min(index, responses.length - 1)]
+      index += 1
+      return next()
+    },
+  })
+  return { resolve, calls }
+}
+
+const okOnce = () => ({ ok: true, status: 200, json: async () => liveBody })
+const tooMany = (retryAfter) => () => ({
+  ok: false, status: 429,
+  headers: { get: (n) => (n === 'retry-after' ? retryAfter : null) },
+  json: async () => ({}),
+})
+
+test('the resolver does not call again inside the minimum interval', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Arrange
+    const { resolve, calls } = resolverHarness({ responses: [okOnce], configPath })
+
+    // Act — 폴링 주기가 5초여도 서버를 다시 두드리지 않아야 한다
+    await resolve({ now: NOW })
+    const second = await resolve({ now: NOW + 5_000 })
+
+    // Assert
+    assert.equal(calls.length, 1)
+    assert.equal(second.source, 'live', '마지막 성공값을 재사용한다')
+  })
+})
+
+test('the resolver calls again once the interval has passed', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Arrange
+    const { resolve, calls } = resolverHarness({ responses: [okOnce], configPath })
+
+    // Act
+    await resolve({ now: NOW })
+    await resolve({ now: NOW + 300_001 })
+
+    // Assert
+    assert.equal(calls.length, 2)
+  })
+})
+
+test('the resolver rests for as long as the server asked', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Arrange — 자체 최소 간격을 짧게 둬서 retry-after 가 결정하게 한다
+    const { resolve, calls } = resolverHarness({
+      responses: [tooMany('203')], configPath, minIntervalMs: 10_000,
+    })
+
+    // Act
+    const first = await resolve({ now: NOW })
+    await resolve({ now: NOW + 202_000 })
+    await resolve({ now: NOW + 204_000 })
+
+    // Assert
+    assert.match(first.fallbackReason, /HTTP 429/)
+    assert.equal(calls.length, 2, '203초가 지나기 전에는 다시 부르지 않는다')
+  })
+})
+
+test('the resolver keeps its own floor when it is longer than Retry-After', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Arrange — 서버가 203초라 해도 우리 하한이 300초면 더 긴 쪽을 지킨다
+    const { resolve, calls } = resolverHarness({
+      responses: [tooMany('203')], configPath, minIntervalMs: 300_000,
+    })
+
+    // Act
+    await resolve({ now: NOW })
+    await resolve({ now: NOW + 204_000 })
+    await resolve({ now: NOW + 301_000 })
+
+    // Assert
+    assert.equal(calls.length, 2)
+  })
+})
+
+test('a throttled reading says how long until the next try', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Arrange
+    const { resolve } = resolverHarness({ responses: [tooMany('203')], configPath })
+
+    // Act
+    await resolve({ now: NOW })
+    const during = await resolve({ now: NOW + 3_000 })
+
+    // Assert
+    assert.match(during.fallbackReason, /200초 후 재시도/)
+  })
+})
+
+test('the resolver never calls at all when live is off', async () => {
+  await withConfig({ cachedUsageUtilization: utilization() }, async (configPath) => {
+    // Arrange
+    let called = false
+    const resolve = createLimitsResolver({
+      configPath, live: false,
+      loadCredentialsImpl: async () => { called = true; return fakeCreds() },
+    })
+
+    // Act
+    const limits = await resolve({ now: NOW })
+
+    // Assert
+    assert.equal(called, false)
+    assert.equal(limits.source, 'cache')
   })
 })

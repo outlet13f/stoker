@@ -4,6 +4,20 @@ import path from 'node:path'
 /** Claude Code 가 세션 트랜스크립트(JSONL)를 저장하는 위치 */
 export const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects')
 
+/**
+ * 계정 한도를 직접 받아오는 엔드포인트. Claude Code 가 쓰는 것과 같다.
+ * 공개 API 가 아니라 문서화되지 않은 내부 경로이므로 언제든 바뀔 수 있다.
+ */
+export const USAGE_API_BASE_URL = 'https://api.anthropic.com'
+export const USAGE_API_PATH = '/api/oauth/usage'
+export const USAGE_API_TIMEOUT_MS = 5000
+
+/**
+ * 실시간 한도 조회의 최소 간격. 이 엔드포인트는 레이트 리밋이 걸려 있어
+ * (실측: 429 + Retry-After 203초) 대시보드 폴링 주기에 그대로 물리면 안 된다.
+ */
+export const LIVE_LIMITS_MIN_INTERVAL_MS = 5 * 60 * 1000
+
 /** Claude Code 설정 파일. 계정의 실제 사용 한도 캐시가 여기 들어 있다. */
 export const CLAUDE_CONFIG_FILE = path.join(os.homedir(), '.claude.json')
 

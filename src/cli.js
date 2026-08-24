@@ -4,7 +4,7 @@ import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { parseArgs } from './args.js'
 import { createCollector } from './collector.js'
-import { readUsageLimits } from './limits.js'
+import { resolveUsageLimits } from './limits.js'
 import { buildReportSet } from './report.js'
 import { renderPage } from './render/html.js'
 import { renderSummary } from './summary.js'
@@ -29,6 +29,8 @@ claude-usage — Claude Code 사용량 모니터링 대시보드
   --tz <타임존>      집계 기준 타임존 (기본: 시스템 설정)
   --refresh <초>     대시보드 자동 갱신 주기 (기본 30, 5~3600, 0 은 끔)
                      실행 후에도 대시보드 헤더에서 바꿀 수 있습니다
+  --no-live-limits   계정 한도를 서버에 직접 묻지 않고 캐시만 사용
+                     (기본은 GET api.anthropic.com/api/oauth/usage 로 조회)
   --open             만든 HTML 또는 서버 주소를 브라우저로 열기
   --help, -h         이 도움말
 `
@@ -43,6 +45,7 @@ async function runServer(options) {
     port: options.port,
     timeZone: options.timeZone,
     refreshSeconds: options.refreshSeconds,
+    liveLimits: options.liveLimits,
   })
 
   console.log(`대시보드 실행 중 → ${url}`)
@@ -56,7 +59,7 @@ async function runServer(options) {
 
 async function runBuild(options) {
   const { records, edits, stats } = await createCollector().collect()
-  const limits = await readUsageLimits()
+  const limits = await resolveUsageLimits({ live: options.liveLimits })
   const reports = buildReportSet(records, { now: Date.now(), timeZone: options.timeZone, edits })
 
   if (options.json) {

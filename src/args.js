@@ -6,7 +6,7 @@ import {
   MAX_REFRESH_SECONDS,
 } from './constants.js'
 
-const FLAGS = new Set(['--serve', '--json', '--open', '--help', '-h'])
+const FLAGS = new Set(['--serve', '--json', '--open', '--help', '-h', '--no-live-limits'])
 const VALUE_FLAGS = new Set(['--port', '--days', '--out', '--tz', '--refresh'])
 
 function requireValue(flag, raw) {
@@ -50,12 +50,18 @@ export function parseArgs(argv) {
     port: DEFAULT_PORT,
     days: DEFAULT_RANGE_DAYS,
     refreshSeconds: DEFAULT_REFRESH_SECONDS,
+    liveLimits: true,
     out: null,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   }
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index]
+
+    if (token === '--no-live-limits') {
+      options.liveLimits = false
+      continue
+    }
 
     if (FLAGS.has(token)) {
       const key = token.replace(/^-+/, '')

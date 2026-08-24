@@ -145,9 +145,16 @@ function renderLimits(report) {
     </div>`
   }).join('')
 
+  // 실시간인지 캐시로 되돌아간 것인지 반드시 구분해 보여준다
+  if (limits.source === 'live') {
+    $('limits-note').textContent = '방금 서버에서 받아온 값입니다'
+    return
+  }
+
+  const why = limits.fallbackReason ? ` (${limits.fallbackReason})` : ''
   $('limits-note').textContent = limits.isStale
-    ? `${formatDuration(limits.ageMs)} 전에 받아온 값입니다 — 지금은 더 올라가 있을 수 있습니다`
-    : `${formatDuration(limits.ageMs)} 전 기준`
+    ? `캐시 · ${formatDuration(limits.ageMs)} 전 값 — 지금은 더 올라가 있을 수 있습니다${why}`
+    : `캐시 · ${formatDuration(limits.ageMs)} 전 값${why}`
 }
 
 /* ---------- 밴드 1: 진행 중 블록 계기 ---------- */
@@ -698,6 +705,9 @@ function renderColophon(report) {
   $('colophon-stats').innerHTML = `
     <li>집계 대상: <code>~/.claude/projects</code> 아래 트랜스크립트 ${state.config.fileCount ?? '-'}개,
       중복 제거 후 ${report.allTime.requests.toLocaleString('en-US')}건의 어시스턴트 응답</li>
+    <li>사용량 집계는 전부 로컬에서 합니다. 나가는 요청은 두 가지뿐입니다 —
+      계정 한도 조회(<code>api.anthropic.com/api/oauth/usage</code>, <code>--no-live-limits</code> 로 끔)와
+      웹폰트(<code>fonts.googleapis.com</code>).</li>
     <li>금액은 <strong>공개 API 단가로 환산한 참고값</strong>입니다. 구독 요금제라면 실제 청구액이 아니라
       "같은 작업을 API로 했다면" 값으로 읽으세요.</li>
     <li>5시간 블록은 첫 활동을 정시에 앵커해 계산하며, 5시간 이상 공백이 생기면 새 블록으로 셉니다.</li>
