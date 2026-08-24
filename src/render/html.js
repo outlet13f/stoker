@@ -53,6 +53,7 @@ function bodyMarkup() {
           <span class="refresh-suffix" aria-hidden="true">초</span>
         </span>
         <datalist id="refresh-presets"></datalist>
+        <button class="toggle" id="refresh-now" type="button">지금 갱신</button>
         <button class="toggle" id="theme-toggle" type="button">테마 전환</button>
       </div>
       <span class="refresh-message" id="refresh-message" role="status"></span>
@@ -210,7 +211,7 @@ window.__CONFIG__ = ${embedJson(config)};
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23D9662F' rx='2'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231C1A17'/%3E%3Cpath d='M16 5 C22 12 24 16 24 19 C24 23 20.5 26 16 26 C11.5 26 8 23 8 19 C8 16 10 12 16 5 Z' fill='%23B85A28'/%3E%3Cpath d='M16 12 C19 16 20 18 20 20 C20 22.5 18.2 24 16 24 C13.8 24 12 22.5 12 20 C12 18 13 16 16 12 Z' fill='%23D9662F'/%3E%3C/svg%3E">
 ${head}
 </head>
 <body>

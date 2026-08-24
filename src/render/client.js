@@ -971,7 +971,29 @@ function renderRefreshControl() {
       .join('')
   }
 
+  const now = $('refresh-now')
+  if (now) {
+    now.disabled = !state.config.live
+    now.title = state.config.live ? '지금 한 번 갱신' : '정적 스냅샷이라 갱신할 서버가 없습니다'
+  }
+
   setRefreshMessage(refreshStatusText(state.refreshSeconds), false)
+}
+
+/** 주기와 무관하게 한 번 갱신한다. 멈춰 둔 상태에서 쓰는 것이 주 용도다. */
+async function refreshNow() {
+  const button = $('refresh-now')
+  if (!state.config.live || !button || button.disabled) return
+
+  button.disabled = true
+  setRefreshMessage('갱신 중…', false)
+
+  try {
+    await refresh()
+  } finally {
+    // refresh 가 renderAll 로 상태를 되돌리지만, 실패했을 때도 다시 누를 수 있어야 한다
+    button.disabled = !state.config.live
+  }
 }
 
 function applyRefreshInput() {
@@ -999,6 +1021,8 @@ function bindRefreshControl() {
   input.addEventListener('keydown', (event) => {
     if (event?.key === 'Enter') applyRefreshInput()
   })
+
+  $('refresh-now')?.addEventListener('click', refreshNow)
 }
 
 /** 저장된 취향 > 서버가 준 기본값 > 하한 */

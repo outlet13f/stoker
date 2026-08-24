@@ -536,3 +536,79 @@ test('the rate card marks a model whose price was guessed', async () => {
   // Assert — claude-opus-5 는 공개 단가라 추정 표시가 없어야 한다
   assert.doesNotMatch(nodes.get('rate-card').innerHTML, /단가 추정/)
 })
+
+/* ---------- 수동 갱신 버튼 ---------- */
+
+test('the refresh button asks the server right away', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+  const before = harness.calls.length
+
+  // Act
+  await harness.nodes.get('refresh-now').click()
+
+  // Assert
+  assert.equal(harness.calls.length, before + 1)
+})
+
+test('the refresh button still works while auto refresh is paused', async () => {
+  // Arrange — 멈춤 상태에서 직접 갱신하는 것이 이 버튼의 핵심 용도다
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+  const input = harness.nodes.get('refresh-input')
+  input.value = '0'
+  await input.fire('change')
+  const before = harness.calls.length
+
+  // Act
+  await harness.nodes.get('refresh-now').click()
+
+  // Assert
+  assert.equal(harness.calls.length, before + 1)
+})
+
+test('the refresh button keeps a chosen custom window', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+  harness.nodes.get('date-from').value = '2026-08-01'
+  harness.nodes.get('date-to').value = '2026-08-10'
+  await harness.nodes.get('date-apply').click()
+
+  // Act
+  await harness.nodes.get('refresh-now').click()
+
+  // Assert
+  assert.match(harness.calls.at(-1), /from=2026-08-01/)
+})
+
+test('the refresh button is disabled in a static export', async () => {
+  // Act
+  const { nodes } = await boot({ live: false, config: { refreshSeconds: 0 } })
+
+  // Assert
+  assert.equal(nodes.get('refresh-now').disabled, true)
+})
+
+test('a static export refuses a manual refresh instead of fetching', async () => {
+  // Arrange
+  const harness = await boot({ live: false, config: { refreshSeconds: 0 } })
+  const before = harness.calls.length
+
+  // Act
+  await harness.nodes.get('refresh-now').click()
+
+  // Assert
+  assert.equal(harness.calls.length, before)
+})
+
+test('the refresh button ignores a second click while one is in flight', async () => {
+  // Arrange
+  const harness = await boot({ config: { refreshSeconds: 30 } })
+  const button = harness.nodes.get('refresh-now')
+  const before = harness.calls.length
+
+  // Act — 동시에 두 번 누른 상황
+  await Promise.all([button.click(), button.click()])
+
+  // Assert
+  assert.equal(harness.calls.length, before + 1)
+})

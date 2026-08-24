@@ -67,6 +67,8 @@ node src/cli.js --serve --refresh 45   # 실행 시 기본값
 ```
 
 실행 후에는 대시보드 헤더의 `갱신 [ ] 초` 입력란에 **원하는 값을 직접 적습니다.**
+옆의 `지금 갱신` 버튼은 주기와 무관하게 한 번 즉시 갱신합니다 — 갱신을 멈춰 둔
+상태에서 필요할 때만 불러오는 용도입니다.
 프리셋(5·10·30·60·300초)은 입력란의 제안 목록으로만 뜨고, 그 밖의 값도 얼마든지 됩니다.
 
 - 허용 범위 **5~3600초**, `0` 은 갱신 멈춤
@@ -158,12 +160,15 @@ scripts/
 electron/
   main.js        데스크톱 껍데기(서버를 앱 안에서 띄우고 창에 로드)
   preload.js     의도적으로 빈 preload
+build/
+  icon.svg       앱 아이콘 원본(팔레트의 seq 램프를 그대로 쓴 불꽃)
+  icon.png       1024px, electron-builder 가 icns/ico 로 변환
 ```
 
 ## 개발
 
 ```bash
-npm test          # node:test, 219개
+npm test          # node:test, 225개
 npm run coverage  # 라인 99.9% / 브랜치 96.3%
 ```
 
