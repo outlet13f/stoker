@@ -20,8 +20,25 @@ import {
   compareWindows,
   percentile,
 } from './aggregate.js'
+import { sumEdits, buildEditDailySeries, groupEditsBy } from './edits.js'
 import { resolveTier } from './pricing.js'
 import { describeProjectPath } from './project.js'
+
+/**
+ * 집계 구간을 하나의 [from, to] 창으로 정리한다.
+ * rangeDays 는 "지금부터 거꾸로 N 일"이고, from/to 를 주면 그 구간이 우선한다.
+ */
+export function resolveWindow({ now: _now, from, to, rangeDays } = {}, now = Date.now()) {
+  const end = Number.isFinite(to) ? to : now
+
+  if (Number.isFinite(from)) {
+    const days = Math.max(1, Math.ceil((end - from) / MS_PER_DAY))
+    return { from, to: end, rangeDays: days }
+  }
+
+  const days = Number.isFinite(rangeDays) ? rangeDays : DEFAULT_RANGE_DAYS
+  return { from: end - days * MS_PER_DAY, to: end, rangeDays: days }
+}
 
 /** 블록에서 지금까지의 소진 속도로 블록 종료 시점 총량을 추정한다 */
 export function projectBlockBurn(block, now) {
@@ -79,9 +96,13 @@ function extremum(records, pick) {
  * 대시보드가 렌더링에 필요한 모든 값을 담은 단일 리포트 객체.
  * 렌더러는 계산을 하지 않고 이 객체만 그린다.
  */
-export function buildReport(records, { now = Date.now(), timeZone, rangeDays = DEFAULT_RANGE_DAYS } = {}) {
-  const rangeStart = now - rangeDays * MS_PER_DAY
-  const inRange = records.filter((record) => record.timestamp > rangeStart)
+export function buildReport(records, options = {}) {
+  const { now = Date.now(), timeZone, edits = [] } = options
+  const { from, to, rangeDays } = resolveWindow(options, now)
+
+  const inWindow = (item) => item.timestamp >= from && item.timestamp <= to
+  const inRange = records.filter(inWindow)
+  const editsInRange = edits.filter(inWindow)
 
   const blocks = buildBlocks(records, { now })
   const activeBlock = blocks.find((block) => block.isActive) ?? null
@@ -95,13 +116,14 @@ export function buildReport(records, { now = Date.now(), timeZone, rangeDays = D
     generatedAt: now,
     timeZone,
     rangeDays,
+    window: { from, to },
 
     allTime,
     range: sumUsage(inRange),
     cacheHitRate: computeCacheHitRate(allTime),
     rangeCacheHitRate: computeCacheHitRate(sumUsage(inRange)),
 
-    daily: buildDailySeries(records, { days: rangeDays, now, timeZone }),
+    daily: buildDailySeries(records, { days: rangeDays, now: to, timeZone }),
     hours: buildHourHistogram(inRange, { timeZone }),
 
     blocks: blocks.slice(-24),
@@ -132,6 +154,15 @@ export function buildReport(records, { now = Date.now(), timeZone, rangeDays = D
       }),
     ).slice(0, TOP_N_SESSIONS),
 
+    code: {
+      range: sumEdits(editsInRange),
+      allTime: sumEdits(edits),
+      daily: buildEditDailySeries(edits, { days: rangeDays, now: to, timeZone }),
+      byProject: groupEditsBy(editsInRange, (edit) => edit.project)
+        .map((group) => ({ ...group, ...describeProjectPath(group.key) }))
+        .slice(0, TOP_N_PROJECTS),
+    },
+
     dayOverDay: compareWindows(records, { now, windowMs: MS_PER_DAY }),
     weekOverWeek: compareWindows(records, { now, windowMs: WEEKLY_WINDOW_DAYS * MS_PER_DAY }),
 
@@ -157,19 +188,26 @@ export function classifyBurn(projectedCost, historicalCosts) {
   return { level, rank }
 }
 
-/** 선택 가능한 모든 기간의 리포트를 한 번에 만든다(정적 내보내기에서도 기간 전환이 되도록) */
-export function buildReportSet(records, { now = Date.now(), timeZone } = {}) {
+/**
+ * 선택 가능한 모든 기간의 리포트를 한 번에 만든다(정적 내보내기에서도 기간 전환이 되도록).
+ * customWindow 를 주면 'custom' 키로 사용자 지정 구간 리포트를 덧붙인다.
+ */
+export function buildReportSet(records, { now = Date.now(), timeZone, edits = [], customWindow = null } = {}) {
   const first = records.reduce((min, r) => Math.min(min, r.timestamp), Infinity)
   const allDays = Number.isFinite(first)
     ? Math.max(1, Math.ceil((now - first) / MS_PER_DAY) + 1)
     : DEFAULT_RANGE_DAYS
 
-  const entries = [
-    ...RANGE_PRESETS.map((days) => [String(days), days]),
-    ['all', allDays],
+  const presets = [
+    ...RANGE_PRESETS.map((days) => [String(days), { rangeDays: days }]),
+    ['all', { rangeDays: allDays }],
   ]
 
+  const entries = customWindow
+    ? [...presets, ['custom', { from: customWindow.from, to: customWindow.to }]]
+    : presets
+
   return Object.fromEntries(
-    entries.map(([key, days]) => [key, buildReport(records, { now, timeZone, rangeDays: days })]),
+    entries.map(([key, window]) => [key, buildReport(records, { now, timeZone, edits, ...window })]),
   )
 }

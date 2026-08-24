@@ -51,6 +51,16 @@ function bodyMarkup() {
   <div class="filters">
     <span class="filter-label">집계 기간</span>
     <span class="filters" id="filters"></span>
+    <span class="date-range" id="date-range">
+      <label class="sr-only" for="date-from">시작일</label>
+      <input class="date-input" type="date" id="date-from">
+      <span class="date-sep" aria-hidden="true">–</span>
+      <label class="sr-only" for="date-to">종료일</label>
+      <input class="date-input" type="date" id="date-to">
+      <button class="chip" id="date-apply" type="button">적용</button>
+      <button class="chip" id="date-clear" type="button" hidden>해제</button>
+    </span>
+    <span class="date-message" id="date-message" role="alert"></span>
   </div>
 
   ${band({
@@ -68,6 +78,26 @@ function bodyMarkup() {
       <div class="panel-head"><h3>일별 환산 비용</h3></div>
       <div id="daily-chart"></div>
       <details><summary>데이터 표로 보기</summary><div id="daily-table"></div></details>
+    </div>`,
+  })}
+
+  ${band({
+    question: '코드는 얼마나 바뀌었나',
+    heading: '코드 변경량',
+    note: 'code-note',
+    body: `
+    <div class="tiles" id="code-tiles"></div>
+    <div class="panel">
+      <div class="panel-head">
+        <h3>일별 추가 · 삭제 줄</h3>
+        <div class="legend" id="code-legend"></div>
+      </div>
+      <div id="code-chart"></div>
+      <details><summary>데이터 표로 보기</summary><div id="code-table"></div></details>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>프로젝트별 변경 줄</h3></div>
+      <div id="code-projects"></div>
     </div>`,
   })}
 

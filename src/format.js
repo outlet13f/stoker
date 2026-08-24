@@ -15,13 +15,18 @@ export function formatCost(value) {
   })}`
 }
 
-export function formatTokens(value) {
+/** 큰 정수를 축 라벨용으로 짧게 줄인다(토큰 수, 코드 줄 수 공용) */
+export function formatCount(value) {
   const amount = Number(value) || 0
   if (amount >= GIGA) return `${(amount / GIGA).toFixed(1)}B`
   if (amount >= MEGA) return `${(amount / MEGA).toFixed(1)}M`
   if (amount >= KILO) return `${(amount / KILO).toFixed(1)}K`
 
   return String(Math.round(amount))
+}
+
+export function formatTokens(value) {
+  return formatCount(value)
 }
 
 export function formatPercent(ratio, digits = 1) {

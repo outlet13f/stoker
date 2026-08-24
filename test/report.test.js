@@ -185,3 +185,156 @@ test('buildReport returns no ticks when no block is active', () => {
   const report = buildReport([record('2026-08-20T09:00:00Z')], OPTIONS)
   assert.deepEqual(report.activeBlockTicks, [])
 })
+
+/* ---------- 코드 변경량 ---------- */
+
+const edit = (iso, over = {}) => ({
+  timestamp: Date.parse(iso),
+  linesAdded: 10,
+  linesRemoved: 3,
+  filePath: '/work/app/a.js',
+  project: '/work/app',
+  projectLabel: 'app',
+  sourceKind: 'main',
+  sessionId: 's1',
+  isCreate: false,
+  dedupeKey: iso,
+  ...over,
+})
+
+test('buildReport summarises code changes for the selected range', () => {
+  // Arrange
+  const edits = [
+    edit('2026-01-01T00:00:00Z', { linesAdded: 999, dedupeKey: 'old' }),
+    edit('2026-08-24T09:00:00Z'),
+  ]
+
+  // Act
+  const report = buildReport([], { ...OPTIONS, edits })
+
+  // Assert
+  assert.equal(report.code.range.linesAdded, 10)
+  assert.equal(report.code.range.linesRemoved, 3)
+  assert.equal(report.code.range.linesNet, 7)
+  assert.equal(report.code.allTime.linesAdded, 1009)
+})
+
+test('buildReport reports zeroed code changes when no edits are given', () => {
+  // Act
+  const report = buildReport([record('2026-08-24T09:00:00Z')], OPTIONS)
+
+  // Assert
+  assert.equal(report.code.range.linesAdded, 0)
+  assert.equal(report.code.range.files, 0)
+  assert.deepEqual(report.code.byProject, [])
+})
+
+test('buildReport builds a daily code-change series spanning the range', () => {
+  // Arrange
+  const edits = [edit('2026-08-24T09:00:00Z')]
+
+  // Act
+  const report = buildReport([], { ...OPTIONS, rangeDays: 3, edits })
+
+  // Assert
+  assert.equal(report.code.daily.length, 3)
+  assert.equal(report.code.daily.at(-1).linesAdded, 10)
+  assert.equal(report.code.daily[0].linesAdded, 0)
+})
+
+test('buildReport ranks code changes by project with readable labels', () => {
+  // Arrange
+  const edits = [
+    edit('2026-08-24T09:00:00Z', { project: '/work/small', linesAdded: 1, linesRemoved: 0, dedupeKey: 'a' }),
+    edit('2026-08-24T09:30:00Z', { project: '/work/big', linesAdded: 500, linesRemoved: 0, dedupeKey: 'b' }),
+  ]
+
+  // Act
+  const report = buildReport([], { ...OPTIONS, edits })
+
+  // Assert
+  assert.equal(report.code.byProject[0].key, '/work/big')
+  assert.equal(report.code.byProject[0].label, 'big')
+  assert.equal(report.code.byProject[1].key, '/work/small')
+})
+
+/* ---------- 사용자 지정 날짜 구간 ---------- */
+
+test('buildReport honours an explicit from/to window', () => {
+  // Arrange
+  const records = [
+    record('2026-08-10T00:00:00Z'),
+    record('2026-08-15T00:00:00Z', { sessionId: 's2' }),
+    record('2026-08-20T00:00:00Z', { sessionId: 's3' }),
+  ]
+
+  // Act
+  const report = buildReport(records, {
+    now: NOW,
+    timeZone: 'UTC',
+    from: Date.parse('2026-08-14T00:00:00Z'),
+    to: Date.parse('2026-08-16T00:00:00Z'),
+  })
+
+  // Assert
+  assert.equal(report.range.requests, 1)
+  assert.equal(report.window.from, Date.parse('2026-08-14T00:00:00Z'))
+  assert.equal(report.window.to, Date.parse('2026-08-16T00:00:00Z'))
+})
+
+test('buildReport derives rangeDays from an explicit window', () => {
+  // Act
+  const report = buildReport([], {
+    now: NOW,
+    timeZone: 'UTC',
+    from: Date.parse('2026-08-18T00:00:00Z'),
+    to: Date.parse('2026-08-25T00:00:00Z'),
+  })
+
+  // Assert
+  assert.equal(report.rangeDays, 7)
+})
+
+test('buildReport anchors the daily series at the window end, not now', () => {
+  // Arrange
+  const records = [record('2026-08-15T09:00:00Z')]
+
+  // Act
+  const report = buildReport(records, {
+    now: NOW,
+    timeZone: 'UTC',
+    from: Date.parse('2026-08-13T00:00:00Z'),
+    to: Date.parse('2026-08-16T00:00:00Z'),
+  })
+
+  // Assert
+  assert.equal(report.daily.at(-1).date, '2026-08-16')
+  assert.ok(report.daily.some((day) => day.date === '2026-08-15' && day.requests === 1))
+})
+
+test('buildReport keeps the live block anchored at now even for a past window', () => {
+  // Arrange: 구간은 과거지만 진행 중 블록 판정은 현재 기준이어야 한다
+  const records = [record('2026-08-24T09:30:00Z')]
+
+  // Act
+  const report = buildReport(records, {
+    now: NOW,
+    timeZone: 'UTC',
+    from: Date.parse('2026-08-01T00:00:00Z'),
+    to: Date.parse('2026-08-02T00:00:00Z'),
+  })
+
+  // Assert
+  assert.ok(report.activeBlock)
+  assert.equal(report.range.requests, 0)
+})
+
+test('buildReport still defaults to a rolling window without from/to', () => {
+  // Act
+  const report = buildReport([record('2026-08-24T09:00:00Z')], OPTIONS)
+
+  // Assert
+  assert.equal(report.window.to, NOW)
+  assert.equal(report.window.from, NOW - 30 * 24 * HOUR)
+  assert.equal(report.range.requests, 1)
+})

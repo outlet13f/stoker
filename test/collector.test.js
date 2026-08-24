@@ -144,3 +144,82 @@ test('collect skips unparsable lines instead of failing the whole run', async (t
   assert.equal(records.length, 1)
   assert.equal(stats.errors.length, 0)
 })
+
+/* ---------- 코드 변경량 수집 ---------- */
+
+function editEntry({ uuid = 'edit-1', iso = '2026-08-01T00:00:00.000Z', added = ['+a'], file = '/work/app/x.js' } = {}) {
+  return JSON.stringify({
+    type: 'user',
+    uuid,
+    timestamp: iso,
+    sessionId: SESSION,
+    cwd: '/work/app',
+    message: { role: 'user', content: [{ type: 'tool_result' }] },
+    toolUseResult: {
+      filePath: file,
+      structuredPatch: [{ lines: added }],
+    },
+  })
+}
+
+test('collect gathers code edits alongside usage records', async (t) => {
+  // Arrange
+  const root = await makeRoot({
+    [`${SESSION}.jsonl`]: `${entry()}\n${editEntry({ added: ['+a', '+b', '-c'] })}\n`,
+  })
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+
+  // Act
+  const { records, edits } = await createCollector({ root }).collect()
+
+  // Assert
+  assert.equal(records.length, 1)
+  assert.equal(edits.length, 1)
+  assert.equal(edits[0].linesAdded, 2)
+  assert.equal(edits[0].linesRemoved, 1)
+})
+
+test('collect drops edits duplicated across transcripts', async (t) => {
+  // Arrange: 같은 편집이 메인 세션과 서브에이전트 파일에 모두 들어 있다
+  const root = await makeRoot({
+    [`${SESSION}.jsonl`]: `${editEntry()}\n`,
+    [`${SESSION}/subagents/agent-a.jsonl`]: `${editEntry()}\n`,
+  })
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+
+  // Act
+  const { edits } = await createCollector({ root }).collect()
+
+  // Assert
+  assert.equal(edits.length, 1)
+})
+
+test('collect labels edits with the project and source kind of their file', async (t) => {
+  // Arrange
+  const root = await makeRoot({
+    [`${SESSION}/subagents/agent-a.jsonl`]: `${editEntry()}\n`,
+  })
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+
+  // Act
+  const { edits } = await createCollector({ root }).collect()
+
+  // Assert
+  assert.equal(edits[0].sourceKind, 'subagent')
+  assert.equal(edits[0].project, '/work/app')
+})
+
+test('collect reuses cached edits when a file is unchanged', async (t) => {
+  // Arrange
+  const root = await makeRoot({ [`${SESSION}.jsonl`]: `${editEntry()}\n` })
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  const collector = createCollector({ root })
+
+  // Act
+  await collector.collect()
+  const second = await collector.collect()
+
+  // Assert
+  assert.equal(second.stats.reparsedFiles, 0)
+  assert.equal(second.edits.length, 1)
+})

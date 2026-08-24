@@ -25,6 +25,17 @@ export function renderSummary(report) {
     '',
   ]
 
+  const code = report.code?.range
+  if (code && code.edits > 0) {
+    lines.push(
+      `코드 변경  +${code.linesAdded.toLocaleString('en-US')} / ` +
+        `-${code.linesRemoved.toLocaleString('en-US')} 줄  ·  ` +
+        `순증 ${code.linesNet >= 0 ? '+' : ''}${code.linesNet.toLocaleString('en-US')}  ·  ` +
+        `파일 ${code.files}개  ·  편집 ${code.edits.toLocaleString('en-US')}회`,
+      '',
+    )
+  }
+
   if (report.activeBlock) {
     lines.push(
       `진행 중 블록  ${formatCost(report.activeBlock.cost)} 사용  ·  ` +

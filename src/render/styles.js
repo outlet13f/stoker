@@ -252,6 +252,25 @@ tbody tr:last-child td { border-bottom: none; }
 .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .chip:focus-visible, .toggle:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* 날짜 직접 선택 */
+.date-range { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: 10px; }
+.date-input {
+  font-family: var(--mono); font-size: 12px;
+  padding: 4px 8px; border: 1px solid var(--line-strong); background: var(--surface);
+  color: var(--ink); border-radius: 2px; color-scheme: light dark;
+}
+.date-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.date-input:disabled { color: var(--ink-faint); cursor: not-allowed; }
+.date-sep { color: var(--ink-faint); font-family: var(--mono); font-size: 12px; }
+.date-message { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); }
+.date-message[data-state="error"] { color: var(--crit); }
+
+/* 화면에는 안 보이지만 스크린리더에는 읽히는 라벨 */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
 .toggle {
   font-family: var(--mono); font-size: 12px; padding: 5px 11px;
   border: 1px solid var(--line-strong); background: var(--surface);

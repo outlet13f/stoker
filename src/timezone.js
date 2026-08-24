@@ -37,6 +37,19 @@ export function toDateKey(timestamp, offsetMs) {
   return new Date(timestamp + offsetMs).toISOString().slice(0, 10)
 }
 
+/**
+ * 최근 days 일의 날짜 키와 타임존 오프셋을 함께 돌려준다.
+ * 일별 시계열을 만드는 쪽마다 같은 스캐폴딩을 반복하지 않기 위한 것.
+ */
+export function buildDayWindow({ days, now = Date.now(), timeZone }) {
+  const offsetMs = getTimeZoneOffsetMs(timeZone, now)
+  const keys = Array.from({ length: days }, (_, index) =>
+    toDateKey(now - (days - 1 - index) * MS_PER_DAY, offsetMs),
+  )
+
+  return { offsetMs, keys }
+}
+
 /** 오프셋이 적용된 로컬 기준 0-23 시 */
 export function toLocalHour(timestamp, offsetMs) {
   return Math.floor(((timestamp + offsetMs) % MS_PER_DAY) / MS_PER_HOUR)

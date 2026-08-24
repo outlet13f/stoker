@@ -76,3 +76,63 @@ test('an unknown path returns a JSON 404 rather than an HTML error page', async 
     assert.deepEqual(await response.json(), { error: 'not found' })
   })
 })
+
+/* ---------- 사용자 지정 날짜 구간 ---------- */
+
+test('the report API adds a custom report when from/to are given', async () => {
+  await withServer(async (base) => {
+    const response = await fetch(`${base}/api/report?from=2026-01-01&to=2026-12-31`)
+    const payload = await response.json()
+
+    assert.equal(response.status, 200)
+    assert.ok(payload.reports.custom, 'custom 리포트가 있어야 한다')
+    assert.deepEqual(Object.keys(payload.reports), ['7', '30', '90', 'all', 'custom'])
+    assert.equal(payload.config.customWindow.from, '2026-01-01')
+    assert.equal(payload.config.customWindow.to, '2026-12-31')
+  })
+})
+
+test('the custom report covers the whole to-day, not just its midnight', async () => {
+  await withServer(async (base) => {
+    // 오늘 활동이 하나 있고 to 를 오늘로 잡으면 그 활동이 포함돼야 한다
+    const today = new Date().toISOString().slice(0, 10)
+    const { reports } = await (await fetch(`${base}/api/report?from=${today}&to=${today}`)).json()
+
+    assert.equal(reports.custom.range.requests, 1)
+  })
+})
+
+test('the report API rejects a malformed date', async () => {
+  await withServer(async (base) => {
+    const response = await fetch(`${base}/api/report?from=8/1/2026&to=2026-08-02`)
+
+    assert.equal(response.status, 400)
+    assert.match((await response.json()).error, /YYYY-MM-DD/)
+  })
+})
+
+test('the report API rejects a reversed range', async () => {
+  await withServer(async (base) => {
+    const response = await fetch(`${base}/api/report?from=2026-08-10&to=2026-08-01`)
+
+    assert.equal(response.status, 400)
+    assert.match((await response.json()).error, /from/)
+  })
+})
+
+test('the report API rejects a half-specified range', async () => {
+  await withServer(async (base) => {
+    const response = await fetch(`${base}/api/report?from=2026-08-01`)
+
+    assert.equal(response.status, 400)
+    assert.match((await response.json()).error, /함께/)
+  })
+})
+
+test('the report API rejects an impossible calendar date', async () => {
+  await withServer(async (base) => {
+    const response = await fetch(`${base}/api/report?from=2026-02-30&to=2026-03-01`)
+
+    assert.equal(response.status, 400)
+  })
+})

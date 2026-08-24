@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   formatCost,
   formatTokens,
+  formatCount,
   formatPercent,
   formatDelta,
   formatDuration,
@@ -77,4 +78,28 @@ test('formatCostCompact keeps axis labels short', async () => {
 test('formatCostCompact keeps sub-dollar values readable', async () => {
   const { formatCostCompact } = await import('../src/format.js')
   assert.equal(formatCostCompact(0.5), '$0.50')
+})
+
+test('formatCount abbreviates plain counts for axis labels', () => {
+  // Assert
+  assert.equal(formatCount(0), '0')
+  assert.equal(formatCount(842), '842')
+  assert.equal(formatCount(95_398), '95.4K')
+  assert.equal(formatCount(1_500_000), '1.5M')
+  assert.equal(formatCount(2_000_000_000), '2.0B')
+})
+
+test('formatCount rounds sub-unit and invalid input to a plain number', () => {
+  // Assert
+  assert.equal(formatCount(0.4), '0')
+  assert.equal(formatCount(null), '0')
+  assert.equal(formatCount(undefined), '0')
+  assert.equal(formatCount('nope'), '0')
+})
+
+test('formatTokens stays identical to formatCount', () => {
+  // Assert — formatTokens 는 formatCount 에 위임한다
+  for (const value of [0, 999, 1000, 1_234_567, 5_000_000_000]) {
+    assert.equal(formatTokens(value), formatCount(value))
+  }
 })

@@ -44,8 +44,8 @@ async function runServer(options) {
 }
 
 async function runBuild(options) {
-  const { records, stats } = await createCollector().collect()
-  const reports = buildReportSet(records, { now: Date.now(), timeZone: options.timeZone })
+  const { records, edits, stats } = await createCollector().collect()
+  const reports = buildReportSet(records, { now: Date.now(), timeZone: options.timeZone, edits })
 
   if (options.json) {
     console.log(JSON.stringify({ reports, stats }, null, 2))
@@ -66,7 +66,7 @@ async function runBuild(options) {
   console.log('')
   console.log(
     `트랜스크립트 ${stats.fileCount}개 · 응답 ${stats.recordCount.toLocaleString('en-US')}건 · ` +
-      `${stats.durationMs}ms 소요`,
+      `편집 ${stats.editCount.toLocaleString('en-US')}건 · ${stats.durationMs}ms 소요`,
   )
   if (stats.errors.length > 0) console.warn(`읽지 못한 파일 ${stats.errors.length}개`)
   console.log(`대시보드 저장 → ${outPath}`)

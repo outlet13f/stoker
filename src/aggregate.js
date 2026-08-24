@@ -1,5 +1,5 @@
-import { BLOCK_DURATION_HOURS, MS_PER_HOUR, HEATMAP_HOURS, MS_PER_DAY } from './constants.js'
-import { getTimeZoneOffsetMs, toDateKey, toLocalHour } from './timezone.js'
+import { BLOCK_DURATION_HOURS, MS_PER_HOUR, HEATMAP_HOURS } from './constants.js'
+import { buildDayWindow, getTimeZoneOffsetMs, toDateKey, toLocalHour } from './timezone.js'
 
 const BLOCK_DURATION_MS = BLOCK_DURATION_HOURS * MS_PER_HOUR
 
@@ -80,11 +80,7 @@ export function groupTotalsBy(records, keyFn) {
 
 /** 최근 days 일의 일별 시계열. 활동이 없는 날도 0 으로 채운다. */
 export function buildDailySeries(records, { days, now = Date.now(), timeZone }) {
-  const offsetMs = getTimeZoneOffsetMs(timeZone, now)
-
-  const keys = Array.from({ length: days }, (_, index) =>
-    toDateKey(now - (days - 1 - index) * MS_PER_DAY, offsetMs),
-  )
+  const { offsetMs, keys } = buildDayWindow({ days, now, timeZone })
   const wanted = new Set(keys)
 
   const buckets = new Map(keys.map((key) => [key, emptyTotals()]))
