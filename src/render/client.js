@@ -61,6 +61,12 @@ function deltaClass(ratio) {
   return ratio > 0 ? 'up' : ratio < 0 ? 'down' : ''
 }
 
+/** 비교 대상 구간이 비어 있으면 퍼센트 대신 그 사실을 말한다 */
+function deltaNote(baselineLabel, ratio) {
+  if (ratio === null || ratio === undefined) return `${baselineLabel} 사용 없음`
+  return `${baselineLabel} 대비 <span class="${deltaClass(ratio)}">${formatDelta(ratio)}</span>`
+}
+
 /* ---------- 툴팁 ---------- */
 const tooltip = { node: null }
 
@@ -185,7 +191,7 @@ function tickFace(report) {
       width="${(slot - gap).toFixed(2)}" height="${barHeight.toFixed(2)}" rx="2"
       fill="${fill}" opacity="${opacity}"
       data-tip-title="${from} 부터 5분"
-      data-tip-lines='${JSON.stringify([formatCost(cost)])}'></rect>`
+      data-tip-lines='${esc(JSON.stringify([formatCost(cost)]))}'></rect>`
   }).join('')
 
   const marker = elapsed * width
@@ -211,9 +217,9 @@ function renderTiles(report) {
   $('tiles').innerHTML = [
     tile('선택 기간 비용', formatCost(report.range.cost), `${report.range.requests.toLocaleString('en-US')}건 요청`),
     tile('오늘 (24시간)', formatCost(dayOverDay.current.cost),
-      `어제 대비 <span class="${deltaClass(dayOverDay.costChangeRatio)}">${formatDelta(dayOverDay.costChangeRatio)}</span>`),
+      deltaNote('어제', dayOverDay.costChangeRatio)),
     tile('최근 7일', formatCost(weekOverWeek.current.cost),
-      `직전 7일 대비 <span class="${deltaClass(weekOverWeek.costChangeRatio)}">${formatDelta(weekOverWeek.costChangeRatio)}</span>`),
+      deltaNote('직전 7일', weekOverWeek.costChangeRatio)),
     tile('캐시 적중률', formatPercent(report.rangeCacheHitRate),
       `캐시가 없었다면 ${formatCost(savedShare)}`),
     tile('캐시 절감액', formatCost(report.range.cacheSavings), '읽기를 정가 입력으로 환산한 차액'),
@@ -270,7 +276,7 @@ function verticalBars({ rows, ariaLabel, labelEvery, emphasizeLast }) {
     const bar = barHeight === 0 ? '' : `<rect class="bar" x="${x.toFixed(2)}" y="${(baseline - barHeight).toFixed(2)}"
       width="${(slot - gap).toFixed(2)}" height="${barHeight.toFixed(2)}" rx="2"
       fill="var(--accent)" opacity="${isLast ? 1 : 0.82}"
-      data-tip-title="${esc(row.tipTitle)}" data-tip-lines='${JSON.stringify(row.tipLines)}'></rect>`
+      data-tip-title="${esc(row.tipTitle)}" data-tip-lines='${esc(JSON.stringify(row.tipLines))}'></rect>`
 
     return bar + label
   }).join('')
@@ -429,7 +435,7 @@ function compositionBar(totals, field, valueFormat) {
     return `<rect class="bar" x="${x.toFixed(2)}" y="0" width="${Math.max(MIN_SEGMENT_WIDTH, segWidth - gap).toFixed(2)}"
       height="${height}" rx="2" fill="var(${bucket.varName})"
       data-tip-title="${esc(bucket.label)}"
-      data-tip-lines='${JSON.stringify([valueFormat(value), formatPercent(value / sum), bucket.note])}'></rect>`
+      data-tip-lines='${esc(JSON.stringify([valueFormat(value), formatPercent(value / sum), bucket.note]))}'></rect>`
   }).join('')
 
   return {

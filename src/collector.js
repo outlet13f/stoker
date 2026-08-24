@@ -4,6 +4,8 @@ import { CLAUDE_PROJECTS_DIR } from './constants.js'
 import { listTranscripts } from './scanner.js'
 import { parseLine } from './parser.js'
 import { dedupeRecords } from './aggregate.js'
+import { mapWithLimit } from './concurrency.js'
+import { MAX_OPEN_TRANSCRIPTS } from './constants.js'
 
 /** 한 파일을 스트리밍으로 읽어 사용량 레코드만 뽑는다(622MB 전체를 메모리에 올리지 않음) */
 async function readFileRecords(file) {
@@ -49,21 +51,19 @@ export function createCollector({ root = CLAUDE_PROJECTS_DIR } = {}) {
     const errors = []
     let reparsedFiles = 0
 
-    const perFile = await Promise.all(
-      files.map(async (file) => {
-        const cached = cache.get(file.path)
-        if (cached && cached.size === file.size && cached.mtimeMs === file.mtimeMs) {
-          return cached.records
-        }
+    const perFile = await mapWithLimit(files, MAX_OPEN_TRANSCRIPTS, async (file) => {
+      const cached = cache.get(file.path)
+      if (cached && cached.size === file.size && cached.mtimeMs === file.mtimeMs) {
+        return cached.records
+      }
 
-        const { records, error } = await readFileRecords(file)
-        if (error) errors.push(error)
+      const { records, error } = await readFileRecords(file)
+      if (error) errors.push(error)
 
-        reparsedFiles += 1
-        cache.set(file.path, { size: file.size, mtimeMs: file.mtimeMs, records })
-        return records
-      }),
-    )
+      reparsedFiles += 1
+      cache.set(file.path, { size: file.size, mtimeMs: file.mtimeMs, records })
+      return records
+    })
 
     // 사라진 파일은 캐시에서도 지운다
     const livePaths = new Set(files.map((file) => file.path))

@@ -88,9 +88,7 @@ export function buildReport(records, { now = Date.now(), timeZone, rangeDays = D
   const activeBurn = projectBlockBurn(activeBlock, now)
   const allTime = sumUsage(records)
 
-  const historyCosts = buildBlocks(records, { now })
-    .filter((block) => !block.isActive)
-    .map((block) => block.cost)
+  const historyCosts = blocks.filter((block) => !block.isActive).map((block) => block.cost)
   const burnStatus = classifyBurn(activeBurn?.projectedCost ?? 0, historyCosts)
 
   return {

@@ -3,6 +3,13 @@ import { DEFAULT_PORT, DEFAULT_RANGE_DAYS } from './constants.js'
 const FLAGS = new Set(['--serve', '--json', '--open', '--help', '-h'])
 const VALUE_FLAGS = new Set(['--port', '--days', '--out', '--tz'])
 
+function requireValue(flag, raw) {
+  if (raw === undefined || raw.startsWith('-')) {
+    throw new Error(`${flag} 에 값이 필요합니다`)
+  }
+  return raw
+}
+
 function requireNumber(flag, raw) {
   const value = Number(raw)
   if (!Number.isFinite(value) || value <= 0) {
@@ -34,7 +41,7 @@ export function parseArgs(argv) {
     }
 
     if (VALUE_FLAGS.has(token)) {
-      const raw = argv[index + 1]
+      const raw = requireValue(token, argv[index + 1])
       index += 1
 
       if (token === '--port') options.port = requireNumber(token, raw)

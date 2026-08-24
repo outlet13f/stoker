@@ -224,6 +224,7 @@ th {
 th:first-child { text-align: left; }
 td { padding: 9px 0; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 td:first-child { text-align: left; font-family: var(--body); }
+#sessions td:nth-child(2), #sessions th:nth-child(2) { text-align: left; }
 tbody tr:last-child td { border-bottom: none; }
 
 .rank-name { display: flex; flex-direction: column; gap: 5px; min-width: 0; }

@@ -60,3 +60,6 @@ export const BURN_CRIT_PERCENTILE = 0.9
 
 /** 진행 중 블록 계기판의 눈금 개수(5시간 / 60 = 5분당 1눈금) */
 export const BLOCK_TICKS = 60
+
+/** 동시에 열어 두는 트랜스크립트 파일 수 상한(파일 디스크립터 고갈 방지) */
+export const MAX_OPEN_TRANSCRIPTS = 24

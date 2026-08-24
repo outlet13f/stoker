@@ -36,3 +36,12 @@ test('parseArgs recognises the json, open, and help switches', () => {
   assert.equal(options.open, true)
   assert.equal(options.help, true)
 })
+
+test('parseArgs rejects a value flag with nothing after it', () => {
+  assert.throws(() => parseArgs(['--out']), /--out/)
+  assert.throws(() => parseArgs(['--tz']), /--tz/)
+})
+
+test('parseArgs rejects a value flag followed by another flag', () => {
+  assert.throws(() => parseArgs(['--out', '--serve']), /--out/)
+})
