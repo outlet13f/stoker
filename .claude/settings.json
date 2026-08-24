@@ -1,0 +1,19 @@
+{
+  "$schema": "https://www.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git worktree:*)",
+      "Bash(scripts/worktree.sh:*)",
+      "Bash(npm run wt:new:*)",
+      "Bash(npm run wt:list)",
+      "Bash(npm run wt:rm:*)",
+      "Bash(npm run wt:clean)",
+      "Bash(npm test)",
+      "Bash(npm run coverage)"
+    ]
+  },
+  "worktree": {
+    "baseRef": "head",
+    "bgIsolation": "worktree"
+  }
+}

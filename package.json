@@ -8,7 +8,11 @@
     "start": "node src/cli.js --serve",
     "build": "node src/cli.js",
     "test": "node --test test/*.test.js",
-    "coverage": "node --test --experimental-test-coverage test/*.test.js"
+    "coverage": "node --test --experimental-test-coverage test/*.test.js",
+    "wt:new": "scripts/worktree.sh new",
+    "wt:list": "scripts/worktree.sh list",
+    "wt:rm": "scripts/worktree.sh rm",
+    "wt:clean": "scripts/worktree.sh clean"
   },
   "engines": { "node": ">=20" },
   "license": "MIT"
