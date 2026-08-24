@@ -89,8 +89,8 @@ src/
 ## 개발
 
 ```bash
-npm test          # node:test, 104개
-npm run coverage  # 라인 99.8% / 브랜치 96.3%
+npm test          # node:test, 110개
+npm run coverage  # 라인 99.8% / 브랜치 96.5%
 ```
 
 차트 색은 명도 대역, 채도 하한, 색각 이상 분리도(ΔE), 배경 대비를 라이트·다크 양쪽에서
