@@ -14,6 +14,9 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 const WINDOW = { width: 1440, height: 940, minWidth: 720, minHeight: 560 }
 
 let isQuitting = false
+
+/** --notify-test 결과를 보고하기까지 기다리는 시간 */
+const NOTIFY_TEST_REPORT_MS = 1500
 const BACKGROUND = '#F5F3F0'
 
 /** --refresh 10 처럼 CLI 로 준 값을 그대로 받는다 */
@@ -23,6 +26,21 @@ function parseRefreshSeconds(argv) {
 
   const value = Number(argv[index + 1])
   return Number.isFinite(value) && value >= 0 ? value : DEFAULT_REFRESH_SECONDS
+}
+
+/** --notify-at 70,90 / --no-notify */
+function parseNotifyOptions(argv) {
+  const index = argv.indexOf('--notify-at')
+  const raw = index === -1 ? null : argv[index + 1]
+  const marks = (raw ?? '')
+    .split(',')
+    .map((part) => Number(part.trim()))
+    .filter((mark) => Number.isInteger(mark) && mark >= 1 && mark <= 100)
+
+  return {
+    notify: !argv.includes('--no-notify'),
+    thresholds: marks.length > 0 ? [...new Set(marks)].sort((a, b) => a - b) : undefined,
+  }
 }
 
 function createWindow(url) {
@@ -122,12 +140,27 @@ async function main() {
   const tray = createTray({
     url,
     refreshSeconds,
+    ...parseNotifyOptions(process.argv),
     onToggleWindow: toggleWindow,
     onQuit: () => {
       isQuitting = true
       app.quit()
     },
   })
+
+  // 알림이 이 기기에서 실제로 뜨는지 확인하는 용도.
+  // macOS 는 조용히 거부하므로 결과를 반드시 보고한다.
+  if (process.argv.includes('--notify-test')) {
+    tray.testNotification()
+    setTimeout(() => {
+      const { lastError, delivered } = tray.notificationStatus()
+      console.log(
+        lastError
+          ? `알림 실패: ${lastError}\n시스템 설정 > 알림에서 Stoker 를 허용해 주세요.`
+          : `알림 정상 (${delivered}건 전달)`,
+      )
+    }, NOTIFY_TEST_REPORT_MS)
+  }
 
   app.on('before-quit', () => {
     isQuitting = true

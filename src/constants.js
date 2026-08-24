@@ -18,6 +18,15 @@ export const USAGE_API_TIMEOUT_MS = 5000
  */
 export const LIVE_LIMITS_MIN_INTERVAL_MS = 5 * 60 * 1000
 
+/** 알림을 띄울 세션 한도 임계값(%). 넘는 순간에만 한 번 울린다. */
+export const NOTIFY_THRESHOLDS = [80, 95]
+
+/** 한도 재설정을 미리 알릴 여유 */
+export const RESET_WARNING_MS = 10 * 60 * 1000
+
+/** 이만큼도 안 썼으면 재설정 임박을 알릴 가치가 없다 */
+export const RESET_ALERT_MIN_PERCENT = 50
+
 /** Claude Code 설정 파일. 계정의 실제 사용 한도 캐시가 여기 들어 있다. */
 export const CLAUDE_CONFIG_FILE = path.join(os.homedir(), '.claude.json')
 

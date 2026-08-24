@@ -1,4 +1,5 @@
 import {
+  NOTIFY_THRESHOLDS,
   DEFAULT_PORT,
   DEFAULT_RANGE_DAYS,
   DEFAULT_REFRESH_SECONDS,
@@ -6,8 +7,8 @@ import {
   MAX_REFRESH_SECONDS,
 } from './constants.js'
 
-const FLAGS = new Set(['--serve', '--json', '--open', '--help', '-h', '--no-live-limits'])
-const VALUE_FLAGS = new Set(['--port', '--days', '--out', '--tz', '--refresh'])
+const FLAGS = new Set(['--serve', '--json', '--open', '--help', '-h', '--no-live-limits', '--no-notify'])
+const VALUE_FLAGS = new Set(['--port', '--days', '--out', '--tz', '--refresh', '--notify-at'])
 
 function requireValue(flag, raw) {
   if (raw === undefined || raw.startsWith('-')) {
@@ -40,6 +41,17 @@ function requireRefreshSeconds(flag, raw) {
   return value
 }
 
+/** '80,95' 처럼 쉼표로 이어진 퍼센트 목록 */
+function requireThresholds(flag, raw) {
+  const marks = raw.split(',').map((part) => Number(part.trim()))
+
+  if (marks.length === 0 || marks.some((mark) => !Number.isInteger(mark) || mark < 1 || mark > 100)) {
+    throw new Error(`${flag} 는 1~100 사이 정수를 쉼표로 이어 주세요: ${raw}`)
+  }
+
+  return [...new Set(marks)].sort((a, b) => a - b)
+}
+
 /** CLI 인자를 옵션 객체로 바꾼다. 모르는 옵션은 조용히 넘기지 않고 실패시킨다. */
 export function parseArgs(argv) {
   const options = {
@@ -51,6 +63,8 @@ export function parseArgs(argv) {
     days: DEFAULT_RANGE_DAYS,
     refreshSeconds: DEFAULT_REFRESH_SECONDS,
     liveLimits: true,
+    notify: true,
+    notifyAt: NOTIFY_THRESHOLDS,
     out: null,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   }
@@ -60,6 +74,11 @@ export function parseArgs(argv) {
 
     if (token === '--no-live-limits') {
       options.liveLimits = false
+      continue
+    }
+
+    if (token === '--no-notify') {
+      options.notify = false
       continue
     }
 
@@ -78,6 +97,7 @@ export function parseArgs(argv) {
       else if (token === '--out') options.out = raw
       else if (token === '--tz') options.timeZone = raw
       else if (token === '--refresh') options.refreshSeconds = requireRefreshSeconds(token, raw)
+      else if (token === '--notify-at') options.notifyAt = requireThresholds(token, raw)
       continue
     }
 

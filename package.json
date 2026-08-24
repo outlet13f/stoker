@@ -61,6 +61,7 @@
       ],
       "category": "Development"
     },
-    "icon": "build/icon.png"
+    "icon": "build/icon.png",
+    "afterPack": "build/adhoc-sign.cjs"
   }
 }

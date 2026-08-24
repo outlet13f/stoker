@@ -108,3 +108,42 @@ test('parseArgs keeps --no-live-limits out of the flag name mangling', () => {
   const options = parseArgs(['--no-live-limits'])
   assert.equal('no-live-limits' in options, false)
 })
+
+/* ---------- 알림 ---------- */
+
+test('parseArgs enables notifications by default with sane thresholds', () => {
+  // Act
+  const options = parseArgs([])
+
+  // Assert
+  assert.equal(options.notify, true)
+  assert.deepEqual(options.notifyAt, [80, 95])
+})
+
+test('parseArgs can turn notifications off', () => {
+  assert.equal(parseArgs(['--no-notify']).notify, false)
+})
+
+test('parseArgs reads custom thresholds', () => {
+  // Act & Assert
+  assert.deepEqual(parseArgs(['--notify-at', '70,90']).notifyAt, [70, 90])
+  assert.deepEqual(parseArgs(['--notify-at', '50']).notifyAt, [50])
+})
+
+test('parseArgs sorts and dedupes thresholds', () => {
+  assert.deepEqual(parseArgs(['--notify-at', '95,80,95']).notifyAt, [80, 95])
+})
+
+test('parseArgs rejects thresholds outside 1-100', () => {
+  assert.throws(() => parseArgs(['--notify-at', '0,80']), /1~100/)
+  assert.throws(() => parseArgs(['--notify-at', '80,120']), /1~100/)
+})
+
+test('parseArgs rejects non-integer thresholds', () => {
+  assert.throws(() => parseArgs(['--notify-at', '80.5']), /1~100/)
+  assert.throws(() => parseArgs(['--notify-at', 'high']), /1~100/)
+})
+
+test('parseArgs keeps --no-notify out of the flag name mangling', () => {
+  assert.equal('no-notify' in parseArgs(['--no-notify']), false)
+})
