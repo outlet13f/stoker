@@ -7,6 +7,9 @@
 이름은 불을 지켜보며 연료를 대는 화부(stoker)에서 왔습니다. 이 도구가 하는 일도
 진행 중인 5시간 블록이 얼마나 빠르게 타고 있는지 지켜보는 것입니다.
 
+마크는 불꽃이 아니라 **아래가 트인 링 게이지**입니다. 이 도구가 실제로 보여 주는
+것은 불이 아니라 계기판이고, 16px 메뉴바에서 읽히는 것도 그쪽입니다.
+
 ## 빠른 시작
 
 ```bash
@@ -91,10 +94,12 @@ npm run app -- --notify-test       # 이 기기에서 알림이 뜨는지 확인
 (`71%` 와 `96%` 는 읽으면 압니다).
 
 ```
-불꽃 71%        한도를 실시간으로 읽은 경우
-불꽃 주의 $261  한도가 낡았거나 없어 금액으로 되돌아간 경우
-불꽃            진행 중인 블록도 한도도 없음
+게이지 71%        한도를 실시간으로 읽은 경우
+게이지 주의 $261  한도가 낡았거나 없어 금액으로 되돌아간 경우
+게이지            진행 중인 블록도 한도도 없음
 ```
+
+(`게이지` 자리에 트레이 아이콘이 찍힙니다)
 
 낡은 퍼센트를 그냥 띄우면 여유 있다고 오해하게 만들므로, 그때는 금액으로
 되돌아가고 상태 단어를 붙여 주의를 끕니다. 금액은 센트를 버려 폭이 흔들리지
@@ -107,9 +112,13 @@ npm run app -- --notify-test       # 이 기기에서 알림이 뜨는지 확인
 메뉴바는 창과 같은 `/api/report` 를 읽으므로 두 화면의 수치가 어긋나지 않습니다.
 갱신 주기는 `--refresh` 값을 따르되 최소 15초, 갱신을 끈 경우 60초입니다.
 
-트레이 아이콘은 `npm run icons` 로 다시 만듭니다. `qlmanage` 로 SVG 를 변환하면
-알파가 흰 배경으로 평탄화돼 메뉴바에 통짜 사각형이 찍히므로, zlib 만 써서
-알파까지 직접 래스터화합니다.
+아이콘은 `npm run icons` 로 다시 만듭니다 — 메뉴바 아이콘, 작업표시줄 아이콘,
+앱 아이콘(`icon.png`·`icon.svg`)이 한 번에 나옵니다. 도형은 `src/render/mark.js`
+하나에서 오므로 대시보드 헤더의 마크까지 같은 모양입니다.
+
+`qlmanage` 로 SVG 를 변환하면 알파가 흰 배경으로 평탄화됩니다 — 메뉴바에는
+통짜 사각형이 찍히고 앱 아이콘은 둥근 모서리 바깥이 하얘집니다. 그래서 zlib 만
+써서 알파까지 직접 래스터화합니다.
 
 
 ```bash
@@ -308,6 +317,7 @@ src/
   server.js      로컬 HTTP 서버 (/ 와 /api/report)
   cli.js         진입점
   render/        디자인 토큰, 스타일, 클라이언트 렌더러, HTML 조립
+    mark.js      브랜드 마크(링 게이지)의 기하 — 화면·메뉴바·앱 아이콘이 공유한다
 scripts/
   worktree.sh          git 워크트리 생성·조회·제거·정리
   validate_palette.js  팔레트 대비·램프 검증
@@ -321,17 +331,21 @@ electron/
   label.js       메뉴바 문구 조립(Electron 을 import 하지 않아 그대로 테스트한다)
   preload.js     의도적으로 빈 preload
 build/
-  icon.svg       앱 아이콘 원본(팔레트의 seq 램프를 그대로 쓴 불꽃)
-  icon.png       1024px, electron-builder 가 icns/ico 로 변환
-  make-tray-icon.mjs  메뉴바 템플릿 아이콘 래스터라이저(zlib 만 사용)
-  trayTemplate.png    16px / @2x 32px, 검정+알파만
+  make-icons.mjs  아이콘 세 벌을 한 번에 굽는다(mark.js 의 도형을 쓴다)
+  png.mjs         의존성 없는 PNG 인코더와 슈퍼샘플러
+  icon.png        1024px, electron-builder 가 icns/ico 로 변환 — 생성물
+  icon.svg        같은 그림의 벡터 원본 — 생성물
+  trayTemplate.png  16px / @2x 32px, 검정+알파만(macOS 가 명암에 맞춰 반전)
+  trayColor.png     16px / @2x 32px, 색이 구워진 것(Windows·Linux)
 ```
 
 ## 접근성과 폰트
 
-- **외부 요청 없음**: 라틴 웹폰트(Archivo, IBM Plex Mono)를 `src/render/fonts/` 에
+- **외부 요청 없음**: 라틴 웹폰트(Inter, JetBrains Mono)를 `src/render/fonts/` 에
   넣고 CSS 에 base64 로 심습니다. 한글은 시스템 서체를 씁니다(웹폰트로 받으면 수 MB).
   파일 하나로 완결되고 오프라인에서도 타이포가 유지됩니다. 굵기를 바꿀 때만 `npm run fonts`.
+  둘 다 **가변 폰트 하나**로 받습니다 — Google Fonts 가 굵기별로 요청해도 같은 파일을
+  넘기므로, 굵기마다 받으면 번들만 3배가 됩니다.
 - **대비**: `npm run palette` 가 두 테마의 대비와 램프 단조성 50개 항목을 검사합니다.
   실사용처 기준입니다 — 텍스트 4.5:1, 9~10px 마크 3:1, 장식 테두리·그리드선은 면제.
   테스트에도 묶여 있어 토큰을 바꾸면 깨집니다.
@@ -342,8 +356,8 @@ build/
 ## 개발
 
 ```bash
-npm test          # node:test, 319개
-npm run coverage  # 라인 99.9% / 브랜치 96.3%
+npm test          # node:test, 373개
+npm run coverage  # 라인 99.6% / 브랜치 95.7%
 ```
 
 ### 워크트리

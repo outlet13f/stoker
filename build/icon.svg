@@ -1,19 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Stoker">
-  <!-- 화부의 화구: 번트오렌지 팔레트(#D9662F)와 순차 램프를 그대로 쓴다 -->
-  <rect width="1024" height="1024" rx="228" fill="#1C1A17"/>
-  <rect x="150" y="150" width="724" height="724" rx="120" fill="#211E1B"/>
-
-  <!-- 아래에서 위로 잦아드는 불꽃: seq-5 → seq-1 -->
-  <g transform="translate(512 596)">
-    <path d="M0 -300 C 96 -196 150 -120 150 -36 C 150 60 74 128 0 128 C -74 128 -150 60 -150 -36 C -150 -120 -96 -196 0 -300 Z" fill="#7A360F"/>
-    <path d="M0 -232 C 68 -152 108 -92 108 -30 C 108 42 56 92 0 92 C -56 92 -108 42 -108 -30 C -108 -92 -68 -152 0 -232 Z" fill="#B85A28"/>
-    <path d="M0 -160 C 42 -104 68 -60 68 -20 C 68 30 38 62 0 62 C -38 62 -68 30 -68 -20 C -68 -60 -42 -104 0 -160 Z" fill="#D9662F"/>
-    <path d="M0 -84 C 20 -52 34 -28 34 -6 C 34 22 20 40 0 40 C -20 40 -34 22 -34 -6 C -34 -28 -20 -52 0 -84 Z" fill="#E39C6E"/>
-  </g>
-
-  <!-- 화격자(grate): 연료를 대는 자리 -->
-  <g fill="#423C36">
-    <rect x="286" y="742" width="452" height="26" rx="13"/>
-    <rect x="286" y="800" width="452" height="26" rx="13"/>
+  <!-- 이 파일은 `npm run icons` 가 build/make-icons.mjs 로 생성합니다. 직접 고치지 마세요. -->
+  <defs>
+    <linearGradient id="stoker-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8a80ec"/>
+      <stop offset="1" stop-color="#3a2b93"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" fill="url(#stoker-bg)"/>
+  <g transform="translate(163.84 163.84)">
+    <path d="M120.97 546.57A250.68 250.68 0 1 1 575.35 546.57" fill="none" stroke="#ffffff" stroke-width="139.26"/>
   </g>
 </svg>

@@ -19,7 +19,7 @@
     "app": "electron electron/main.js",
     "app:pack": "electron-builder --dir",
     "app:dist": "electron-builder",
-    "icons": "node build/make-tray-icon.mjs",
+    "icons": "node build/make-icons.mjs",
     "fonts": "node build/fetch-fonts.mjs",
     "palette": "node scripts/validate_palette.js"
   },
@@ -37,7 +37,7 @@
     "files": [
       "electron/**/*",
       "src/**/*",
-      "build/trayTemplate*.png",
+      "build/tray*.png",
       "package.json"
     ],
     "directories": {

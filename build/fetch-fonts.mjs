@@ -10,8 +10,8 @@ const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src',
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36'
 
 const WANTED = [
-  { query: 'Archivo:wght@500..700', family: 'Archivo', file: () => 'archivo-var.woff2' },
-  { query: 'IBM+Plex+Mono:wght@400;500;600', family: 'IBM Plex Mono', file: (w) => `ibm-plex-mono-${w}.woff2` },
+  { query: 'Inter:wght@400..700', family: 'Inter', file: () => 'inter-var.woff2' },
+  { query: 'JetBrains+Mono:wght@400..600', family: 'JetBrains Mono', file: () => 'jetbrains-mono-var.woff2' },
 ]
 
 /** Google Fonts CSS 에서 latin 서브셋 블록만 골라낸다 */
