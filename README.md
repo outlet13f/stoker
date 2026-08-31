@@ -356,7 +356,7 @@ build/
 ## 개발
 
 ```bash
-npm test          # node:test, 373개
+npm test          # node:test, 384개
 npm run coverage  # 라인 99.6% / 브랜치 95.7%
 ```
 

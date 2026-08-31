@@ -23,6 +23,7 @@ ${LIGHT_BLOCK}
 
   --gutter: clamp(16px, 4vw, 40px);
   --band-gap: clamp(30px, 4.4vw, 48px);
+  --intro-gap: clamp(16px, 2.2vw, 24px);
   --topbar-h: 56px;
   color-scheme: light dark;
 }
@@ -208,12 +209,15 @@ code {
 }
 
 /* ---------- 도구 막대 ---------- */
+/* 제목 묶음과 도구 막대는 한 덩어리다. 예전에는 부모 gap 을 음수 마진으로
+   0.45 만큼 되돌렸는데, band-gap 의 clamp 를 건드릴 때마다 그 계수를 손으로
+   다시 구해야 했다. 둘을 감싸고 간격을 직접 준다. */
+.page-intro { display: flex; flex-direction: column; gap: var(--intro-gap); }
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 10px 14px;
   align-items: center;
-  margin-top: calc(var(--band-gap) * -0.45);
 }
 
 /* ---------- 밴드 ---------- */
@@ -319,6 +323,9 @@ code {
 .axis-text { font-family: var(--mono); font-size: 10px; fill: var(--ink-faint); }
 .bar { transition: opacity 0.14s ease; }
 .chart:hover .bar:not(:hover) { opacity: 0.5; }
+/* 막대는 opacity 를 인라인 속성으로 달고 나온다(0.82/0.88). 가리킨 것을
+   1 로 올리지 않으면 이웃만 흐려질 뿐 정작 그 막대는 강조되지 않는다. */
+.bar:hover { opacity: 1; }
 
 .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
 
@@ -348,13 +355,17 @@ tbody tr:hover td { background: var(--surface-sunk); }
 .rank-label { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .rank-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .rank-sub { font-size: 11px; color: var(--ink-faint); font-family: var(--mono); }
+/* 트랙은 line 을 쓴다. surface-sunk 는 행 hover 배경과 같은 토큰이라
+   마우스를 올리면 트랙이 셀에 묻혀 "100% 중 얼마" 라는 기준이 사라진다. */
 .rank-bar {
-  display: block; height: 6px; background: var(--surface-sunk);
+  display: block; height: 6px; background: var(--line);
   border-radius: var(--r-pill); overflow: hidden; max-width: 260px;
 }
 .rank-fill {
   display: block; height: 100%; min-width: 3px;
   border-radius: var(--r-pill);
+  /* color-mix 를 모르는 엔진은 아래 선언만 버리고 위의 단색으로 떨어진다 */
+  background: var(--accent);
   background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 66%, var(--surface)));
 }
 .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 3px; flex: none; }
@@ -392,12 +403,16 @@ tbody tr:hover td { background: var(--surface-sunk); }
   transition: background-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
 }
 .chip:hover { color: var(--ink); background: var(--surface); }
+/* 선택 상태를 배경으로 읽히게 한다. surface 로 두면 트랙(surface-sunk)과
+   1.06:1 이라 사실상 글자색만으로 구분해야 했고, 다크에서는 선택 칩이 트랙보다
+   어두워 눌림/솟음 은유가 뒤집혔다. */
 .chip[aria-pressed="true"] {
-  background: var(--surface);
-  border-color: var(--line);
-  color: var(--ink);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
   box-shadow: var(--shadow-sm);
 }
+.chip[aria-pressed="true"]:hover { background: var(--accent); color: var(--bg); }
 
 /* 날짜 칸의 적용·해제는 세그먼티드가 아니라 버튼이다 */
 .date-range .chip {

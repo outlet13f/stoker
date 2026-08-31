@@ -22,6 +22,18 @@ export const MARK = {
   gapDegrees: 130,
 }
 
+/**
+ * 마크를 단색으로 칠할 때 쓰는 색.
+ *
+ * 작업표시줄·브라우저 탭처럼 **테마를 알 수 없는 자리**에 놓이므로 밝은 바탕과
+ * 어두운 바탕 양쪽에서 견디는 값이어야 한다. theme.js 의 accent 는 라이트/다크가
+ * 서로 다른 값이라 여기에는 쓸 수 없다.
+ *
+ * 아이콘 래스터라이저(build/make-icons.mjs)와 파비콘(render/html.js)이 함께 쓴다.
+ */
+export const MARK_HEX = '#7C75F0'
+export const MARK_RGB = [0x7c, 0x75, 0xf0]
+
 const CENTER_RADIUS = (MARK.outerRadius + MARK.innerRadius) / 2
 const STROKE_RATIO = MARK.outerRadius - MARK.innerRadius
 const GAP_HALF_RADIANS = ((MARK.gapDegrees / 2) * Math.PI) / 180
@@ -62,7 +74,7 @@ export function ringStroke(size) {
 /**
  * 링 호의 SVG path. **butt cap 을 전제로 한 좌표다.**
  *
- * 둥근 끝(round cap)을 주면 획 절반만큼 호가 늘어나 아래 틈이 84°에서 52° 로
+ * 둥근 끝(round cap)을 주면 획 절반만큼 호가 늘어나 아래 틈이 130°에서 약 98° 로
  * 좁아진다. 그러면 같은 값에서 나온 래스터 아이콘과 틈 크기가 눈에 띄게
  * 달라진다 — 두 아이콘을 나란히 두면 바로 보인다.
  */

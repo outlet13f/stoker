@@ -3,16 +3,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { trayTitle, trayTooltip, trayReadouts } from './label.js'
 import { createAlerter } from './alerts.js'
+import { trayIconFile } from './platform.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const IS_MAC = process.platform === 'darwin'
 
-/**
- * macOS 는 템플릿(검정 + 알파)을 주면 메뉴바 명암에 맞춰 반전해 준다.
- * 다른 OS 는 그런 처리가 없어 검정 아이콘이 어두운 작업표시줄에서 사라지므로
- * 색이 구워진 아이콘을 쓴다. @2x 는 createFromPath 가 알아서 함께 읽는다.
- */
-const ICON = path.join(HERE, '..', 'build', IS_MAC ? 'trayTemplate.png' : 'trayColor.png')
+/** @2x 는 createFromPath 가 알아서 함께 읽는다 */
+const ICON = path.join(HERE, '..', 'build', trayIconFile(process.platform))
 
 /** 메뉴바 갱신은 창보다 느려도 된다. 너무 잦으면 수집기를 두드린다. */
 const MIN_POLL_SECONDS = 15

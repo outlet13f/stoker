@@ -1,7 +1,7 @@
 import { STYLES } from './styles.js'
 import { buildFontFaceCss } from './fonts.js'
 import { buildClientScript } from './bundle.js'
-import { ringPath, ringStroke } from './mark.js'
+import { ringPath, ringStroke, MARK_HEX } from './mark.js'
 
 const PAGE_TITLE = 'Stoker'
 
@@ -80,6 +80,9 @@ function bodyMarkup() {
 </header>
 
 <div class="shell">
+  <main id="main">
+
+  <div class="page-intro">
   <div class="page-head">
     <div>
       <p class="eyebrow">Claude Code · 로컬 트랜스크립트</p>
@@ -111,8 +114,7 @@ function bodyMarkup() {
     </span>
     <span class="date-message" id="date-message" role="alert"></span>
   </div>
-
-  <main id="main">
+  </div>
 
   ${band({
     question: '한도까지 얼마 남았나',
@@ -238,7 +240,7 @@ function bodyMarkup() {
  */
 const FAVICON =
   `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${MARK_BOX} ${MARK_BOX}'%3E` +
-  `%3Cpath d='${RING_PATH}' fill='none' stroke='%237C75F0' stroke-width='${RING_STROKE}'/%3E%3C/svg%3E`
+  `%3Cpath d='${RING_PATH}' fill='none' stroke='${encodeURIComponent(MARK_HEX)}' stroke-width='${RING_STROKE}'/%3E%3C/svg%3E`
 
 /**
  * mode 'standalone' : 로컬 파일/서버용 완전한 HTML 문서

@@ -78,7 +78,6 @@ export const DARK_TOKENS = {
 export const LIGHT_EFFECTS = {
   'shadow-sm': '0 1px 2px rgb(16 20 32 / 0.05)',
   'shadow-md': '0 1px 2px rgb(16 20 32 / 0.05), 0 6px 16px -6px rgb(16 20 32 / 0.10)',
-  'shadow-lg': '0 2px 4px rgb(16 20 32 / 0.05), 0 16px 40px -12px rgb(16 20 32 / 0.16)',
   'shadow-pop': '0 8px 28px -6px rgb(16 20 32 / 0.28)',
   'glass': 'rgb(255 255 255 / 0.78)',
   'ring': 'rgb(79 70 229 / 0.18)',
@@ -87,7 +86,6 @@ export const LIGHT_EFFECTS = {
 export const DARK_EFFECTS = {
   'shadow-sm': '0 1px 2px rgb(0 0 0 / 0.35)',
   'shadow-md': '0 1px 2px rgb(0 0 0 / 0.35), 0 6px 16px -6px rgb(0 0 0 / 0.55)',
-  'shadow-lg': '0 2px 4px rgb(0 0 0 / 0.4), 0 16px 40px -12px rgb(0 0 0 / 0.7)',
   'shadow-pop': '0 8px 28px -6px rgb(0 0 0 / 0.7)',
   'glass': 'rgb(20 22 28 / 0.78)',
   'ring': 'rgb(139 133 255 / 0.28)',

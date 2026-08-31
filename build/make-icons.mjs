@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { encodePng, forEachSubsample, SUBSAMPLES_PER_PIXEL } from './png.mjs'
-import { isInsideMark, ringPath, ringStroke } from '../src/render/mark.js'
+import { isInsideMark, ringPath, ringStroke, MARK_RGB } from '../src/render/mark.js'
 
 /**
  * 아이콘 세 벌을 한 번에 굽는다 — 모두 src/render/mark.js 의 링 게이지다.
@@ -25,7 +25,7 @@ const WHITE = [0xff, 0xff, 0xff]
  * 표시줄(#F3F3F3)에서 2.74:1 로 둘 다 기준 미달이다. 이 값은 #F3F3F3 3.34:1 ·
  * #202020 4.39:1 로 양쪽을 넘긴다(WCAG 1.4.11 비텍스트 기준 3:1).
  */
-const TASKBAR_ACCENT = [0x7c, 0x75, 0xf0]
+const TASKBAR_ACCENT = MARK_RGB
 
 /* ---------- 메뉴바 · 작업표시줄 아이콘 ---------- */
 
