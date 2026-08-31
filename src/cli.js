@@ -35,9 +35,26 @@ claude-usage — Claude Code 사용량 모니터링 대시보드
   --help, -h         이 도움말
 `
 
+/**
+ * 기본 브라우저로 연다.
+ *
+ * Windows 의 start 는 실행 파일이 아니라 cmd.exe 빌트인이라 execFile 로는
+ * 부를 수 없다. 그리고 start 는 첫 인자를 창 제목으로 삼으므로 빈 제목("")을
+ * 먼저 넘겨야 URL 이 제목으로 먹히지 않는다.
+ */
+function openCommand() {
+  if (process.platform === 'darwin') return ['open', []]
+  if (process.platform === 'win32') return ['cmd', ['/c', 'start', '']]
+  return ['xdg-open', []]
+}
+
 function openInBrowser(target) {
-  const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-  execFile(opener, [target], () => {})
+  const [command, prefix] = openCommand()
+
+  execFile(command, [...prefix, target], (error) => {
+    // 못 열어도 주소는 이미 찍어 뒀다. 조용히 삼키면 왜 안 열렸는지 알 수 없다.
+    if (error) console.error(`브라우저를 열지 못했습니다(${error.message}). 위 주소를 직접 열어 주세요.`)
+  })
 }
 
 async function runServer(options) {

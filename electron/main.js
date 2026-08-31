@@ -63,7 +63,7 @@ function createWindow(url) {
   window.once('ready-to-show', () => window.show())
   window.loadURL(url)
 
-  // 메뉴바 앱이므로 창을 닫아도 종료하지 않고 숨긴다. 종료는 트레이 메뉴나 Cmd+Q.
+  // 상주 앱이므로 창을 닫아도 종료하지 않고 숨긴다. 종료는 트레이 메뉴에서.
   window.on('close', (event) => {
     if (isQuitting) return
     event.preventDefault()
@@ -120,7 +120,22 @@ function buildMenu(url, exporter) {
   ])
 }
 
+/**
+ * Windows 토스트 알림은 앱의 AppUserModelID 가 시작 메뉴 바로가기의 것과
+ * 맞아야 뜬다. 안 맞으면 show() 는 성공한 척하고 알림만 조용히 사라진다.
+ * NSIS 설치본은 appId 로 바로가기를 만드므로 여기서 같은 값을 박아 준다.
+ */
+const APP_USER_MODEL_ID = 'dev.duksang.stoker'
+
+/** 알림이 막혔을 때 어디를 열어야 하는지는 OS 마다 다르다 */
+const NOTIFY_SETTINGS_HINT =
+  process.platform === 'win32'
+    ? '설정 > 시스템 > 알림에서 Stoker 를 허용해 주세요.'
+    : '시스템 설정 > 알림에서 Stoker 를 허용해 주세요.'
+
 async function main() {
+  if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID)
+
   await app.whenReady()
 
   const refreshSeconds = parseRefreshSeconds(process.argv)
@@ -183,7 +198,7 @@ async function main() {
       const { lastError, delivered } = tray.notificationStatus()
       console.log(
         lastError
-          ? `알림 실패: ${lastError}\n시스템 설정 > 알림에서 Stoker 를 허용해 주세요.`
+          ? `알림 실패: ${lastError}\n${NOTIFY_SETTINGS_HINT}`
           : `알림 정상 (${delivered}건 전달)`,
       )
     }, NOTIFY_TEST_REPORT_MS)

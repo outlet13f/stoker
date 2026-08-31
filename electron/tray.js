@@ -5,7 +5,14 @@ import { trayTitle, trayTooltip, trayReadouts } from './label.js'
 import { createAlerter } from './alerts.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-const ICON = path.join(HERE, '..', 'build', 'trayTemplate.png')
+const IS_MAC = process.platform === 'darwin'
+
+/**
+ * macOS 는 템플릿(검정 + 알파)을 주면 메뉴바 명암에 맞춰 반전해 준다.
+ * 다른 OS 는 그런 처리가 없어 검정 아이콘이 어두운 작업표시줄에서 사라지므로
+ * 색이 구워진 아이콘을 쓴다. @2x 는 createFromPath 가 알아서 함께 읽는다.
+ */
+const ICON = path.join(HERE, '..', 'build', IS_MAC ? 'trayTemplate.png' : 'trayColor.png')
 
 /** 메뉴바 갱신은 창보다 느려도 된다. 너무 잦으면 수집기를 두드린다. */
 const MIN_POLL_SECONDS = 15
@@ -23,7 +30,7 @@ function pollIntervalMs(refreshSeconds) {
 export function createTray({ url, refreshSeconds, onToggleWindow, onQuit, onExportPdf, notifier, notify = true, thresholds }) {
   const image = nativeImage.createFromPath(ICON)
   // 템플릿 이미지로 표시하면 macOS 가 메뉴바 명암에 맞춰 자동으로 반전한다
-  image.setTemplateImage(true)
+  if (IS_MAC) image.setTemplateImage(true)
 
   const tray = new Tray(image)
   const alerter = createAlerter({ enabled: notify, ...(thresholds ? { thresholds } : {}) })
@@ -41,7 +48,9 @@ export function createTray({ url, refreshSeconds, onToggleWindow, onQuit, onExpo
   }
 
   function render() {
-    tray.setTitle(trayTitle(report, limits))
+    // setTitle 은 macOS 전용이다. Windows·Linux 트레이에는 아이콘 옆 글자 자리가
+    // 아예 없으므로, 한도 % 는 툴팁과 메뉴 첫 줄(trayReadouts)이 대신 짊어진다.
+    if (IS_MAC) tray.setTitle(trayTitle(report, limits))
     tray.setToolTip(trayTooltip(report, limits))
 
     tray.setContextMenu(
