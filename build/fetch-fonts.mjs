@@ -9,9 +9,14 @@ import { fileURLToPath } from 'node:url'
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'render', 'fonts')
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36'
 
+/**
+ * 가변 폰트 하나만 받는다. 굵기별 정적 파일로 떨어지면 fonts.js 가 선언한
+ * `font-weight: 400 700` 이 거짓이 되므로(브라우저가 굵기를 합성한다)
+ * 그때는 받지 않고 멈춘다.
+ */
 const WANTED = [
-  { query: 'Archivo:wght@500..700', family: 'Archivo', file: () => 'archivo-var.woff2' },
-  { query: 'IBM+Plex+Mono:wght@400;500;600', family: 'IBM Plex Mono', file: (w) => `ibm-plex-mono-${w}.woff2` },
+  { query: 'Inter:wght@400..700', file: 'inter-var.woff2' },
+  { query: 'JetBrains+Mono:wght@400..600', file: 'jetbrains-mono-var.woff2' },
 ]
 
 /** Google Fonts CSS 에서 latin 서브셋 블록만 골라낸다 */
@@ -27,15 +32,26 @@ function latinFaces(css) {
     .filter((face) => face.url)
 }
 
-for (const { query, file } of WANTED) {
-  const css = await (await fetch(`https://fonts.googleapis.com/css2?family=${query}&display=swap`, {
-    headers: { 'User-Agent': UA },
-  })).text()
+/** 실패를 조용히 넘기면 아무것도 안 받고 exit 0 이 된다 */
+async function get(url, what) {
+  const response = await fetch(url, { headers: { 'User-Agent': UA } })
+  if (!response.ok) throw new Error(`${what} 요청 실패: HTTP ${response.status} ${response.statusText}`)
+  return response
+}
 
-  for (const { weight, url } of latinFaces(css)) {
-    const target = path.join(OUT, file(weight))
-    const bytes = Buffer.from(await (await fetch(url)).arrayBuffer())
-    await writeFile(target, bytes)
-    console.log(`${path.basename(target)}: ${bytes.length} bytes`)
+for (const { query, file } of WANTED) {
+  const url = `https://fonts.googleapis.com/css2?family=${query}&display=swap`
+  const faces = latinFaces(await (await get(url, query)).text())
+
+  if (faces.length !== 1) {
+    throw new Error(
+      `${query}: latin 서브셋이 ${faces.length}개다(가변 폰트 1개를 기대했다). ` +
+      '굵기별 정적 파일로 바뀌었다면 fonts.js 의 font-weight 선언부터 손봐야 한다.',
+    )
   }
+
+  const target = path.join(OUT, file)
+  const bytes = Buffer.from(await (await get(faces[0].url, file)).arrayBuffer())
+  await writeFile(target, bytes)
+  console.log(`${file}: ${bytes.length} bytes`)
 }

@@ -2,6 +2,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
+import { openCommand } from './open.js'
 import { parseArgs } from './args.js'
 import { createCollector } from './collector.js'
 import { resolveUsageLimits } from './limits.js'
@@ -36,8 +37,12 @@ claude-usage — Claude Code 사용량 모니터링 대시보드
 `
 
 function openInBrowser(target) {
-  const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-  execFile(opener, [target], () => {})
+  const { command, args } = openCommand(process.platform, target)
+
+  execFile(command, args, (error) => {
+    // 못 열어도 주소는 이미 찍어 뒀다. 조용히 삼키면 왜 안 열렸는지 알 수 없다.
+    if (error) console.error(`브라우저를 열지 못했습니다(${error.message}). 위 주소를 직접 열어 주세요.`)
+  })
 }
 
 async function runServer(options) {

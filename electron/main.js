@@ -1,11 +1,16 @@
-import { app, BrowserWindow, shell, Menu } from 'electron'
+import { app, BrowserWindow, shell, Menu, nativeTheme } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 import { createTray } from './tray.js'
 import { createExporter } from './export.js'
 import { createNotifier } from './notify.js'
 import { startServer } from '../src/server.js'
 import { DEFAULT_REFRESH_SECONDS } from '../src/constants.js'
+import { notifySettingsHint, windowBackground } from './platform.js'
+
+/** appId 를 두 벌 적어 두면 어긋나는 순간 Windows 알림이 조용히 사라진다 */
+const { build: BUILD_CONFIG } = createRequire(import.meta.url)('../package.json')
 
 /**
  * 데스크톱 껍데기. 집계와 렌더는 기존 서버를 그대로 쓴다.
@@ -19,7 +24,6 @@ let isQuitting = false
 
 /** --notify-test 결과를 보고하기까지 기다리는 시간 */
 const NOTIFY_TEST_REPORT_MS = 1500
-const BACKGROUND = '#F5F3F0'
 
 /** --refresh 10 처럼 CLI 로 준 값을 그대로 받는다 */
 function parseRefreshSeconds(argv) {
@@ -48,7 +52,7 @@ function parseNotifyOptions(argv) {
 function createWindow(url) {
   const window = new BrowserWindow({
     ...WINDOW,
-    backgroundColor: BACKGROUND,
+    backgroundColor: windowBackground(nativeTheme.shouldUseDarkColors),
     title: 'Stoker',
     show: false,
     webPreferences: {
@@ -63,7 +67,7 @@ function createWindow(url) {
   window.once('ready-to-show', () => window.show())
   window.loadURL(url)
 
-  // 메뉴바 앱이므로 창을 닫아도 종료하지 않고 숨긴다. 종료는 트레이 메뉴나 Cmd+Q.
+  // 상주 앱이므로 창을 닫아도 종료하지 않고 숨긴다. 종료는 트레이 메뉴에서.
   window.on('close', (event) => {
     if (isQuitting) return
     event.preventDefault()
@@ -121,6 +125,11 @@ function buildMenu(url, exporter) {
 }
 
 async function main() {
+  // Windows 토스트는 AppUserModelID 가 시작 메뉴 바로가기의 것과 맞아야 뜬다.
+  // 안 맞으면 show() 는 성공한 척하고 알림만 조용히 사라진다. NSIS 설치본은
+  // build.appId 로 바로가기를 만드므로 같은 값을 그대로 가져다 쓴다.
+  if (process.platform === 'win32') app.setAppUserModelId(BUILD_CONFIG.appId)
+
   await app.whenReady()
 
   const refreshSeconds = parseRefreshSeconds(process.argv)
@@ -183,7 +192,7 @@ async function main() {
       const { lastError, delivered } = tray.notificationStatus()
       console.log(
         lastError
-          ? `알림 실패: ${lastError}\n시스템 설정 > 알림에서 Stoker 를 허용해 주세요.`
+          ? `알림 실패: ${lastError}\n${notifySettingsHint(process.platform)}`
           : `알림 정상 (${delivered}건 전달)`,
       )
     }, NOTIFY_TEST_REPORT_MS)

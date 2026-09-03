@@ -15,12 +15,15 @@ import { fileURLToPath } from 'node:url'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const FONT_DIR = path.join(HERE, 'fonts')
 
-/** [파일, font-family, font-weight] — 가변 폰트는 굵기 범위를 그대로 쓴다 */
+/**
+ * [파일, font-family, font-weight] — 가변 폰트는 굵기 범위를 그대로 쓴다.
+ *
+ * 둘 다 가변이라 굵기마다 파일을 두지 않는다. Google Fonts 가 JetBrains Mono 를
+ * 가변으로 넘기기 시작해서, 굵기별로 받으면 같은 파일을 세 번 심게 된다.
+ */
 const FACES = [
-  ['archivo-var.woff2', 'Archivo', '500 700'],
-  ['ibm-plex-mono-400.woff2', 'IBM Plex Mono', '400'],
-  ['ibm-plex-mono-500.woff2', 'IBM Plex Mono', '500'],
-  ['ibm-plex-mono-600.woff2', 'IBM Plex Mono', '600'],
+  ['inter-var.woff2', 'Inter', '400 700'],
+  ['jetbrains-mono-var.woff2', 'JetBrains Mono', '400 600'],
 ]
 
 async function faceCss([file, family, weight]) {

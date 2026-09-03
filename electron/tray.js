@@ -3,9 +3,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { trayTitle, trayTooltip, trayReadouts } from './label.js'
 import { createAlerter } from './alerts.js'
+import { trayIconFile } from './platform.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-const ICON = path.join(HERE, '..', 'build', 'trayTemplate.png')
+const IS_MAC = process.platform === 'darwin'
+
+/** @2x 는 createFromPath 가 알아서 함께 읽는다 */
+const ICON = path.join(HERE, '..', 'build', trayIconFile(process.platform))
 
 /** 메뉴바 갱신은 창보다 느려도 된다. 너무 잦으면 수집기를 두드린다. */
 const MIN_POLL_SECONDS = 15
@@ -23,7 +27,7 @@ function pollIntervalMs(refreshSeconds) {
 export function createTray({ url, refreshSeconds, onToggleWindow, onQuit, onExportPdf, notifier, notify = true, thresholds }) {
   const image = nativeImage.createFromPath(ICON)
   // 템플릿 이미지로 표시하면 macOS 가 메뉴바 명암에 맞춰 자동으로 반전한다
-  image.setTemplateImage(true)
+  if (IS_MAC) image.setTemplateImage(true)
 
   const tray = new Tray(image)
   const alerter = createAlerter({ enabled: notify, ...(thresholds ? { thresholds } : {}) })
@@ -41,7 +45,9 @@ export function createTray({ url, refreshSeconds, onToggleWindow, onQuit, onExpo
   }
 
   function render() {
-    tray.setTitle(trayTitle(report, limits))
+    // setTitle 은 macOS 전용이다. Windows·Linux 트레이에는 아이콘 옆 글자 자리가
+    // 아예 없으므로, 한도 % 는 툴팁과 메뉴 첫 줄(trayReadouts)이 대신 짊어진다.
+    if (IS_MAC) tray.setTitle(trayTitle(report, limits))
     tray.setToolTip(trayTooltip(report, limits))
 
     tray.setContextMenu(

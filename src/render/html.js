@@ -1,12 +1,32 @@
 import { STYLES } from './styles.js'
 import { buildFontFaceCss } from './fonts.js'
 import { buildClientScript } from './bundle.js'
+import { ringPath, ringStroke, MARK_HEX } from './mark.js'
 
 const PAGE_TITLE = 'Stoker'
 
 /** JSON 을 </script> 로 끊기지 않게 안전하게 심는다 */
 function embedJson(value) {
   return JSON.stringify(value).replace(/</g, '\\u003c')
+}
+
+/**
+ * 브랜드 마크 — 아래가 트인 링 게이지. 도형은 mark.js 하나에서 나온다.
+ *
+ * **바탕판을 깔지 않는다.** 둥근 사각형 위에 흰 호를 얹으면 26px 에서
+ * 사람 실루엣으로 읽혔다 — 호 안쪽의 어두운 면이 머리가 되고 틈 아래가
+ * 몸이 됐다. 도형과 바탕이 같은 색인 탓이라 바탕판을 빼면 사라진다.
+ * 메뉴바 아이콘이 이미 바탕 없는 단색 실루엣이고, 그쪽은 16px 에서도 읽힌다.
+ * 앱 아이콘만 바탕판을 쓴다 — 1024px 에서는 그 착시가 생기지 않는다.
+ */
+const MARK_BOX = 32
+const RING_PATH = ringPath(MARK_BOX)
+const RING_STROKE = ringStroke(MARK_BOX)
+
+function brandMark() {
+  return `<svg class="brand-mark" viewBox="0 0 ${MARK_BOX} ${MARK_BOX}" role="img" aria-label="Stoker">
+      <path d="${RING_PATH}" fill="none" stroke="var(--accent)" stroke-width="${RING_STROKE}"/>
+    </svg>`
 }
 
 /** 라벨 없는 section 은 a11y 트리에서 region 으로 노출되지 않는다 */
@@ -26,48 +46,63 @@ function band({ question, heading, note, body }) {
   </section>`
 }
 
+/** 페이지 머리의 작은 지표 카드 하나 */
+function metaCard(label, valueId) {
+  return `<div><dt>${label}</dt><dd id="${valueId}">-</dd></div>`
+}
+
 function bodyMarkup() {
   return `
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="brand">
+      ${brandMark()}
+      <span class="brand-name">${PAGE_TITLE}</span>
+    </span>
+    <span class="live" id="live" data-state="static">
+      <span class="live-dot"></span><span id="live-text">스냅샷</span>
+    </span>
+    <span class="topbar-spacer"></span>
+    <div class="masthead-controls">
+      <label class="sr-only" for="refresh-input">자동 갱신 주기(초). 0 은 멈춤</label>
+      <span class="refresh-control">
+        <span class="refresh-prefix" aria-hidden="true">갱신</span>
+        <input class="refresh-input" id="refresh-input" type="number"
+          inputmode="numeric" list="refresh-presets" step="1">
+        <span class="refresh-suffix" aria-hidden="true">초</span>
+      </span>
+      <datalist id="refresh-presets"></datalist>
+      <span class="refresh-message" id="refresh-message" role="status"></span>
+      <button class="toggle" id="refresh-now" type="button">지금 갱신</button>
+      <button class="toggle" id="theme-toggle" type="button">테마 전환</button>
+    </div>
+  </div>
+</header>
+
 <div class="shell">
-  <header class="masthead">
+  <main id="main">
+
+  <div class="page-intro">
+  <div class="page-head">
     <div>
       <p class="eyebrow">Claude Code · 로컬 트랜스크립트</p>
-      <h1>${PAGE_TITLE}</h1>
+      <h1>사용량 대시보드</h1>
       <p class="lede">
         <code>~/.claude/projects</code> 의 세션 기록을 직접 읽어 토큰과 환산 비용을 집계합니다.
         집계는 전부 로컬에서 하고, 계정 한도만 Anthropic 에 직접 조회합니다
         (<code>--no-live-limits</code> 로 끄면 나가는 요청이 아예 없습니다).
       </p>
     </div>
-    <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
-      <span class="live" id="live" data-state="static">
-        <span class="live-dot"></span><span id="live-text">스냅샷</span>
-      </span>
-      <div class="masthead-meta">
-        <span>갱신 <b id="generated">-</b></span>
-        <span>응답 <b id="req-count">-</b></span>
-        <span>기간 <b id="span-text">-</b></span>
-      </div>
-      <div class="masthead-controls">
-        <label class="sr-only" for="refresh-input">자동 갱신 주기(초). 0 은 멈춤</label>
-        <span class="refresh-control">
-          <span class="refresh-prefix" aria-hidden="true">갱신</span>
-          <input class="refresh-input" id="refresh-input" type="number"
-            inputmode="numeric" list="refresh-presets" step="1">
-          <span class="refresh-suffix" aria-hidden="true">초</span>
-        </span>
-        <datalist id="refresh-presets"></datalist>
-        <button class="toggle" id="refresh-now" type="button">지금 갱신</button>
-        <button class="toggle" id="theme-toggle" type="button">테마 전환</button>
-      </div>
-      <span class="refresh-message" id="refresh-message" role="status"></span>
-    </div>
-  </header>
+    <dl class="masthead-meta">
+      ${metaCard('갱신', 'generated')}
+      ${metaCard('응답', 'req-count')}
+      ${metaCard('기간', 'span-text')}
+    </dl>
+  </div>
 
-  <main id="main">
-  <div class="filters">
+  <div class="toolbar">
     <span class="filter-label">집계 기간</span>
-    <span class="filters" id="filters"></span>
+    <div class="filters" id="filters"></div>
     <span class="date-range" id="date-range">
       <label class="sr-only" for="date-from">시작일</label>
       <input class="date-input" type="date" id="date-from">
@@ -78,6 +113,7 @@ function bodyMarkup() {
       <button class="chip" id="date-clear" type="button" hidden>해제</button>
     </span>
     <span class="date-message" id="date-message" role="alert"></span>
+  </div>
   </div>
 
   ${band({
@@ -198,6 +234,15 @@ function bodyMarkup() {
 }
 
 /**
+ * 브라우저 탭 아이콘. 브랜드 마크와 같은 호를 그대로 쓴다.
+ * 색은 트레이 아이콘과 같은 중간 인디고 — 밝은 탭 띠와 어두운 탭 띠 양쪽에서
+ * 3:1 을 넘는 유일한 값이다(build/make-icons.mjs 의 TASKBAR_ACCENT 참고).
+ */
+const FAVICON =
+  `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${MARK_BOX} ${MARK_BOX}'%3E` +
+  `%3Cpath d='${RING_PATH}' fill='none' stroke='${encodeURIComponent(MARK_HEX)}' stroke-width='${RING_STROKE}'/%3E%3C/svg%3E`
+
+/**
  * mode 'standalone' : 로컬 파일/서버용 완전한 HTML 문서
  * mode 'artifact'   : Artifact 퍼블리시용(문서 골격은 퍼블리셔가 감싼다)
  */
@@ -224,7 +269,7 @@ window.__CONFIG__ = ${embedJson(config)};
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231C1A17'/%3E%3Cpath d='M16 5 C22 12 24 16 24 19 C24 23 20.5 26 16 26 C11.5 26 8 23 8 19 C8 16 10 12 16 5 Z' fill='%23B85A28'/%3E%3Cpath d='M16 12 C19 16 20 18 20 20 C20 22.5 18.2 24 16 24 C13.8 24 12 22.5 12 20 C12 18 13 16 16 12 Z' fill='%23D9662F'/%3E%3C/svg%3E">
+<link rel="icon" href="${FAVICON}">
 ${head}
 </head>
 <body>

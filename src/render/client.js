@@ -238,7 +238,7 @@ function tickFace(report) {
     const from = clockAt(report.activeBlock.startTime + index * ((report.activeBlock.endTime - report.activeBlock.startTime) / ticks.length))
 
     return `<rect class="bar" x="${x.toFixed(2)}" y="${(height - barHeight).toFixed(2)}"
-      width="${(slot - gap).toFixed(2)}" height="${barHeight.toFixed(2)}" rx="2"
+      width="${(slot - gap).toFixed(2)}" height="${barHeight.toFixed(2)}" rx="3"
       fill="${fill}" opacity="${opacity}"
       data-tip-title="${from} 부터 5분"
       data-tip-lines='${esc(JSON.stringify([formatCost(cost)]))}'></rect>`
@@ -324,7 +324,7 @@ function verticalBars({ rows, ariaLabel, labelEvery, emphasizeLast }) {
       : ''
 
     const bar = barHeight === 0 ? '' : `<rect class="bar" x="${x.toFixed(2)}" y="${(baseline - barHeight).toFixed(2)}"
-      width="${(slot - gap).toFixed(2)}" height="${barHeight.toFixed(2)}" rx="2"
+      width="${(slot - gap).toFixed(2)}" height="${barHeight.toFixed(2)}" rx="3"
       fill="var(--accent)" opacity="${isLast ? 1 : 0.82}"
       data-tip-title="${esc(row.tipTitle)}" data-tip-lines='${esc(JSON.stringify(row.tipLines))}'></rect>`
 
@@ -476,8 +476,8 @@ function compositionBar(totals, field, valueFormat, ariaLabel) {
   if (sum === 0) return { svg: '<p class="empty">데이터가 없습니다.</p>', sum }
 
   const width = 1000
-  const height = 40
-  const gap = 2
+  const height = 44
+  const gap = 3
   let cursor = 0
 
   const segments = TOKEN_BUCKETS.map((bucket) => {
@@ -489,7 +489,7 @@ function compositionBar(totals, field, valueFormat, ariaLabel) {
     cursor += segWidth
 
     return `<rect class="bar" x="${x.toFixed(2)}" y="0" width="${Math.max(MIN_SEGMENT_WIDTH, segWidth - gap).toFixed(2)}"
-      height="${height}" rx="2" fill="var(${bucket.varName})"
+      height="${height}" rx="6" fill="var(${bucket.varName})"
       data-tip-title="${esc(bucket.label)}"
       data-tip-lines='${esc(JSON.stringify([valueFormat(value), formatPercent(value / sum), bucket.note]))}'></rect>`
   }).join('')
@@ -595,9 +595,9 @@ function divergingBars({ rows, ariaLabel, labelEvery }) {
     const tip = `data-tip-title="${esc(row.tipTitle)}" data-tip-lines='${esc(JSON.stringify(row.tipLines))}'`
 
     const up = upHeight === 0 ? '' : `<rect class="bar" x="${x.toFixed(2)}" y="${(midline - upHeight).toFixed(2)}"
-      width="${barWidth}" height="${upHeight.toFixed(2)}" rx="2" fill="var(--ok)" opacity="0.88" ${tip}></rect>`
+      width="${barWidth}" height="${upHeight.toFixed(2)}" rx="3" fill="var(--ok)" opacity="0.88" ${tip}></rect>`
     const down = downHeight === 0 ? '' : `<rect class="bar" x="${x.toFixed(2)}" y="${midline.toFixed(2)}"
-      width="${barWidth}" height="${downHeight.toFixed(2)}" rx="2" fill="var(--crit)" opacity="0.88" ${tip}></rect>`
+      width="${barWidth}" height="${downHeight.toFixed(2)}" rx="3" fill="var(--crit)" opacity="0.88" ${tip}></rect>`
 
     const label = index % labelEvery === 0 || index === lastIndex
       ? `<text class="axis-text" x="${(x + (slot - gap) / 2).toFixed(2)}" y="${height - 8}" text-anchor="middle">${esc(row.label)}</text>`
